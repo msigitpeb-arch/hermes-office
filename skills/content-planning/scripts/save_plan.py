@@ -7,6 +7,8 @@ Hanya pakai standard library.
     save_plan.py status CP-1,CP-2 "Approved" [--note "..."] [--send]
     save_plan.py show [--status "Menunggu review SML"]
     save_plan.py send                             kirim file CSV ke Telegram
+    save_plan.py detail CP-1,CP-2                 tampilkan isi konten (skor, catatan, naskah) di topik reviewer
+    save_plan.py detail --status "Menunggu review SML"
     save_plan.py ping                             kirim pesan tes ke topik review dan topik reviewer
     save_plan.py notify "teks" | @file.txt       kirim laporan/eskalasi ke topik review
     save_plan.py notify --to reviewer @file.txt   kirim hasil pemeriksaan ke topik reviewer
@@ -23,6 +25,7 @@ import datetime
 import json
 import os
 import sys
+import time
 import uuid
 import urllib.request
 from pathlib import Path
@@ -101,6 +104,7 @@ def cmd_add(path, force=False):
         ids.append(item["id"])
     save_rows(list(rows.values()))
     print(f"OK {baru + diperbarui} baris disimpan ke {CSV_PATH} (baru: {baru}, diperbarui: {diperbarui}, id: {', '.join(ids)})")
+    return ids
 
 
 def cmd_status(ids, status, note):
@@ -171,22 +175,80 @@ def send_text(text, to="review"):
     if not token or not chat:
         print("WARN TELEGRAM_BOT_TOKEN atau REVIEW_CHAT_ID belum diset")
         return False
-    data = {"chat_id": chat, "text": text[:4000]}
-    if thread:
-        data["message_thread_id"] = thread
-    req = urllib.request.Request(
-        f"https://api.telegram.org/bot{token}/sendMessage",
-        data=json.dumps(data).encode(),
-        headers={"Content-Type": "application/json"},
-    )
+    semua_ok = True
+    for bagian in potong(text):
+        data = {"chat_id": chat, "text": bagian}
+        if thread:
+            data["message_thread_id"] = thread
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            data=json.dumps(data).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                ok = json.loads(resp.read()).get("ok")
+            print("OK pesan terkirim ke Telegram" if ok else "WARN Telegram menolak kiriman")
+            semua_ok = semua_ok and bool(ok)
+        except Exception as e:
+            print(f"WARN gagal kirim ke Telegram: {e}")
+            semua_ok = False
+    return semua_ok
+
+
+def potong(text, batas=3900):
+    """Pecah teks panjang di batas baris; Telegram menolak pesan di atas 4096 karakter."""
+    while len(text) > batas:
+        i = text.rfind("\n", 0, batas)
+        if i < batas // 2:
+            i = batas
+        yield text[:i]
+        text = text[i:].lstrip("\n")
+    yield text
+
+
+HARI = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+RINCIAN = [
+    ("Hook", "judul_hook"), ("Pesan utama", "pesan_utama"), ("Keyword", "keyword"),
+    ("Negara/bahasa", "negara_bahasa"), ("Search intent", "search_intent"), ("Meta title", "meta_title"),
+    ("Meta description", "meta_description"), ("Slug", "slug"), ("CTA", "cta"),
+    ("Catatan reviewer", "catatan_checker"), ("Catatan SML", "catatan_sml"),
+]
+
+
+def format_detail(r):
+    def isi(k):
+        v = (r.get(k) or "").strip()
+        return "" if v == "-" else v
+
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            ok = json.loads(resp.read()).get("ok")
-        print("OK pesan terkirim ke Telegram" if ok else "WARN Telegram menolak kiriman")
-        return bool(ok)
-    except Exception as e:
-        print(f"WARN gagal kirim ke Telegram: {e}")
-        return False
+        t = datetime.date.fromisoformat(r.get("tanggal_tayang", ""))
+        tgl = f"{HARI[t.weekday()]} {t.day:02d}/{t.month:02d}"
+    except ValueError:
+        tgl = isi("tanggal_tayang") or "-"
+    baris = [
+        f"{r['id']} · {tgl} · {isi('platform')} {isi('format')} · {isi('funnel')}",
+        f"{isi('status') or '-'} · skor {isi('skor_checker') or '-'} · SEO {isi('skor_seo') or '-'} · "
+        f"slop {isi('skor_slop') or '-'} · AI {isi('skor_ai') or '-'} · putaran {isi('revisi_ke') or '-'}",
+    ]
+    baris += [f"{label}: {isi(k)}" for label, k in RINCIAN if isi(k)]
+    if isi("naskah"):
+        baris += ["", "Naskah:", isi("naskah").replace(" | ", "\n")]
+    if isi("faq"):
+        baris += ["", "FAQ:", isi("faq").replace(" | ", "\n")]
+    return "\n".join(baris)
+
+
+def send_detail(ids=None, status=None):
+    """Satu pesan per konten ke topik reviewer, supaya isinya terbaca tanpa membuka CSV."""
+    rows = [r for r in load_rows() if (ids is None or r["id"] in ids) and (not status or r.get("status") == status)]
+    if not rows:
+        print("WARN tidak ada baris yang cocok untuk ditampilkan")
+        return
+    for r in rows:
+        send_text(format_detail(r), to="reviewer")
+        time.sleep(1)  # jaga batas kirim Telegram untuk grup
+    print(f"OK detail {len(rows)} konten dikirim ke topik reviewer")
 
 
 def send_ping():
@@ -212,6 +274,7 @@ def main():
     s.add_argument("--note"); s.add_argument("--send", action="store_true")
     sh = sub.add_parser("show"); sh.add_argument("--status")
     sub.add_parser("send")
+    d = sub.add_parser("detail"); d.add_argument("ids", nargs="?"); d.add_argument("--status")
     sub.add_parser("ping")
     n = sub.add_parser("notify"); n.add_argument("text", help="teks pesan, atau @path/file.txt")
     n.add_argument("--to", choices=["review", "reviewer"], default="review")
@@ -224,8 +287,15 @@ def main():
         send_text(t, args.to)
         return
 
+    if args.cmd == "detail":
+        if not args.ids and not args.status:
+            p.error("isi ID (CP-1,CP-2) atau --status")
+        send_detail({i.strip() for i in args.ids.split(",") if i.strip()} if args.ids else None, args.status)
+        return
+
+    ids_baru = None
     if args.cmd == "add":
-        cmd_add(args.json_file, args.force)
+        ids_baru = cmd_add(args.json_file, args.force)
     elif args.cmd == "status":
         cmd_status(args.ids, args.status, args.note)
     elif args.cmd == "show":
@@ -235,6 +305,8 @@ def main():
         return
     if args.cmd == "send" or getattr(args, "send", False):
         send_document(caption_ringkas())
+    if ids_baru and args.send:
+        send_detail(set(ids_baru))
 
 
 if __name__ == "__main__":
