@@ -39,11 +39,12 @@ Pakai di Telegram: `/content-planning buat content plan 2 minggu untuk PeopleSyn
 
 `setup_team.sh` membuat tim berbasis profile Hermes + Kanban:
 
-| Profile | Peran | Model |
+| Profile | Peran | Model (via 9router) |
 |---|---|---|
-| default (lead) | Ngobrol dengan SML, membuat kartu Kanban | sesuai config default |
-| content-planner | Menyusun draft, lalu `kanban_request_review` | ag/gemini-3.8-flash-high |
-| content-reviewer | Mengoreksi dan memberi approval, menyimpan ke CSV + kirim ke Telegram | cx/gpt-6-astra |
+| default (lead) | Ngobrol dengan SML, membuat kartu Kanban | ag/gemini-3.8-flash |
+| content-planner | Rencana: pilar, funnel, hook, outline, CTA | cx/gpt-5.6-sol |
+| content-writer | Naskah final per konten | ag/gemini-3.8-flash-high |
+| content-reviewer | Koreksi + approval, loop dengan writer sampai approve (batas aman 6 putaran), simpan CSV + lapor | cx/gpt-5.6-sol |
 
 ```bash
 cd ~/hermes-office && git pull

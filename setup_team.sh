@@ -1,8 +1,9 @@
 #!/bin/bash
 # Bikin tim Hermes untuk content planning PeopleSync:
 #   lead (profile default)  -> bikin kartu Kanban
-#   content-planner         -> pembuat draft
-#   content-reviewer        -> pemeriksa + approval, simpan ke CSV
+#   content-planner         -> rencana (strategi)
+#   content-writer          -> naskah
+#   content-reviewer        -> pemeriksa + approval (loop dengan writer), simpan ke CSV
 # Aman dijalankan ulang (update SOUL.md, model, dan skill).
 #
 # Pemakaian: bash setup_team.sh
@@ -14,8 +15,9 @@ SKILL_SRC="$REPO_DIR/skills/content-planning"
 # Semua profile lewat 9router (provider custom)
 ROUTER_URL="http://127.0.0.1:20128/v1"
 LEAD_MODEL="ag/gemini-3.8-flash"
-PLANNER_MODEL="ag/gemini-3.8-flash-high"
-REVIEWER_MODEL="cx/gpt-6-astra"
+PLANNER_MODEL="cx/gpt-5.6-sol"
+WRITER_MODEL="ag/gemini-3.8-flash-high"
+REVIEWER_MODEL="cx/gpt-5.6-sol"
 
 use_router() {  # $1 = profile ("" untuk default), $2 = model
   local p=(); [ -n "$1" ] && p=(-p "$1")
@@ -57,11 +59,21 @@ setup_profile() {
   hermes -p "$name" tools enable kanban >/dev/null 2>&1 || true
 }
 setup_profile content-planner "Pembuat content plan PeopleSync" "$PLANNER_MODEL" "$REPO_DIR/team/content-planner.SOUL.md"
+setup_profile content-writer "Penulis naskah konten PeopleSync" "$WRITER_MODEL" "$REPO_DIR/team/content-writer.SOUL.md"
 setup_profile content-reviewer "Pemeriksa dan approval content plan PeopleSync" "$REVIEWER_MODEL" "$REPO_DIR/team/content-reviewer.SOUL.md"
 
 echo "== 3/5 Lead (profile default)"
 touch "$HERMES_ROOT/SOUL.md"
-grep -q "Peran sebagai Lead tim" "$HERMES_ROOT/SOUL.md" || cat "$REPO_DIR/team/lead.SOUL.append.md" >> "$HERMES_ROOT/SOUL.md"
+# Ganti bagian lead lama (kalau ada) dengan versi terbaru
+python3 - "$HERMES_ROOT/SOUL.md" "$REPO_DIR/team/lead.SOUL.append.md" << 'PY'
+import sys
+soul, add = sys.argv[1], open(sys.argv[2], encoding="utf-8").read()
+s = open(soul, encoding="utf-8").read()
+i = s.find("## Peran sebagai Lead tim")
+if i != -1:
+    s = s[:i].rstrip() + "\n"
+open(soul, "w", encoding="utf-8").write(s + add)
+PY
 use_router "" "$LEAD_MODEL"
 hermes tools enable kanban >/dev/null 2>&1 || true
 
@@ -73,7 +85,7 @@ echo "Restart Hermes (maks 60 detik)..."; timeout 60 hermes gateway restart >/de
 echo "== 5/5 Cek"
 sleep 5
 hermes profile list
-for p in content-planner content-reviewer; do
+for p in content-planner content-writer content-reviewer; do
   echo "--- $p"; hermes profile show "$p" 2>/dev/null | grep -iE 'model|soul|skill' || true
 done
 echo

@@ -8,6 +8,7 @@ Hanya pakai standard library.
     save_plan.py show [--status "Menunggu review SML"]
     save_plan.py send                             kirim file CSV ke Telegram
     save_plan.py ping                             kirim pesan tes ke topik review (cek thread ID)
+    save_plan.py notify "teks" | @file.txt       kirim laporan/eskalasi ke topik review
 
 Konfigurasi: ~/hermes-data/content-plan/config.env
     REVIEW_CHAT_ID=-100...
@@ -30,8 +31,8 @@ CONFIG_PATH = DATA_DIR / "config.env"
 
 FIELDS = [
     "id", "tanggal_tayang", "platform", "format", "pilar", "funnel", "judul_hook",
-    "pesan_utama", "outline", "cta", "keyword", "sumber_klaim", "skor_checker",
-    "catatan_checker", "status", "catatan_sml", "diperbarui",
+    "pesan_utama", "outline", "cta", "keyword", "sumber_klaim", "naskah", "skor_checker",
+    "catatan_checker", "revisi_ke", "status", "catatan_sml", "diperbarui",
 ]
 
 
@@ -159,13 +160,13 @@ def tg_config():
     return {**read_env(Path.home() / ".hermes" / ".env"), **read_env(CONFIG_PATH), **os.environ}
 
 
-def send_ping():
+def send_text(text):
     cfg = tg_config()
     token, chat, thread = cfg.get("TELEGRAM_BOT_TOKEN"), cfg.get("REVIEW_CHAT_ID"), cfg.get("REVIEW_THREAD_ID")
     if not token or not chat:
         print("WARN TELEGRAM_BOT_TOKEN atau REVIEW_CHAT_ID belum diset")
-        return
-    data = {"chat_id": chat, "text": f"Tes: file review Content Planning akan dikirim ke topik ini (thread {thread or '-'})."}
+        return False
+    data = {"chat_id": chat, "text": text[:4000]}
     if thread:
         data["message_thread_id"] = thread
     req = urllib.request.Request(
@@ -176,9 +177,16 @@ def send_ping():
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             ok = json.loads(resp.read()).get("ok")
-        print("OK pesan tes terkirim, cek di topik mana pesan itu muncul" if ok else "WARN Telegram menolak kiriman")
+        print("OK pesan terkirim ke Telegram" if ok else "WARN Telegram menolak kiriman")
+        return bool(ok)
     except Exception as e:
         print(f"WARN gagal kirim ke Telegram: {e}")
+        return False
+
+
+def send_ping():
+    thread = tg_config().get("REVIEW_THREAD_ID")
+    send_text(f"Tes: file review Content Planning akan dikirim ke topik ini (thread {thread or '-'}).")
 
 
 def caption_ringkas():
@@ -198,7 +206,15 @@ def main():
     sh = sub.add_parser("show"); sh.add_argument("--status")
     sub.add_parser("send")
     sub.add_parser("ping")
+    n = sub.add_parser("notify"); n.add_argument("text", help="teks pesan, atau @path/file.txt")
     args = p.parse_args()
+
+    if args.cmd == "notify":
+        t = args.text
+        if t.startswith("@"):
+            t = Path(t[1:]).expanduser().read_text(encoding="utf-8")
+        send_text(t)
+        return
 
     if args.cmd == "add":
         cmd_add(args.json_file, args.force)
