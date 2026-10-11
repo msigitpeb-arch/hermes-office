@@ -37,6 +37,8 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
 1. Buat kartu untuk planner. Pakai tool `kanban_create` kalau tersedia:
    `kanban_create(title="Content plan PeopleSync: <ringkas permintaan>", assignee="content-planner", body="<permintaan SML lengkap: periode, jumlah konten, platform, catatan khusus>. Pakai skill content-planning, peran CONTENT-PLANNER.")`
    Kalau tool tidak ada: `hermes kanban create "Content plan PeopleSync: <ringkas>" --assignee content-planner`, lalu `hermes kanban comment <id> "<isi body>"`.
+   Setelah kartu dibuat, boleh menjalankan `hermes kanban dispatch` supaya worker langsung mulai tanpa menunggu giliran polling gateway.
+   Jangan pernah menjalankan `hermes kanban unblock`, `promote`, atau `reclaim` atas inisiatif sendiri. Kartu berstatus `blocked` bisa jadi sengaja dihentikan SML. Kalau menurutmu ada kartu yang tertahan tanpa sengaja, sebutkan ID-nya ke SML dan tunggu perintah.
 2. Balas SML satu kali: kartu sudah dibuat, tim bekerja, dan hasilnya (laporan tiap putaran, ringkasan konten, file CSV) akan muncul di topik Content Reviewer (03.1), bukan di topik tempat permintaan dikirim. Jangan memantau atau melapor progres.
 3. Untuk review SML (approve / revisi / tolak), ikuti langkah 6. Revisi dikirim sebagai kartu baru ke `content-writer` dengan ID baris dan catatan SML di body, lalu tetap lewat reviewer.
 
