@@ -81,7 +81,7 @@ Data masuk ke tab "Content Plan". URL web app bisa dipanggil siapa saja, jadi `T
 |---|---|---|
 | default (lead) | Ngobrol dengan SML, membuat kartu Kanban | ag/gemini-3.8-flash |
 | content-planner | Rencana: pilar, funnel, hook, outline, CTA | cx/gpt-5.6-sol |
-| content-writer | Naskah final per konten | ag/gemini-3.8-flash-high |
+| content-writer | Naskah final per konten | ag/claude-opus-4-6-thinking |
 | content-reviewer | Koreksi + approval, loop dengan writer sampai approve (batas aman 6 putaran), simpan CSV + lapor | cx/gpt-5.6-sol |
 
 ```bash

@@ -16,7 +16,7 @@ SKILL_SRC="$REPO_DIR/skills/content-planning"
 ROUTER_URL="http://127.0.0.1:20128/v1"
 LEAD_MODEL="ag/gemini-3.8-flash"
 PLANNER_MODEL="cx/gpt-5.6-sol"
-WRITER_MODEL="ag/gemini-3.8-flash-high"
+WRITER_MODEL="ag/claude-opus-4-6-thinking"
 REVIEWER_MODEL="cx/gpt-5.6-sol"
 
 use_router() {  # $1 = profile ("" untuk default), $2 = model
