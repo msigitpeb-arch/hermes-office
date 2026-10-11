@@ -69,12 +69,19 @@ def now():
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
-def cmd_add(path):
-    batch = json.loads(Path(path).read_text(encoding="utf-8"))
+def cmd_add(path, force=False):
+    src = Path(path).expanduser()
+    if not src.exists():
+        sys.exit(f"ERROR file batch tidak ada: {src}")
+    umur_menit = (datetime.datetime.now().timestamp() - src.stat().st_mtime) / 60
+    if umur_menit > 30 and not force:
+        sys.exit(f"ERROR file batch sudah {umur_menit:.0f} menit, kemungkinan sisa run lama. "
+                 "Tulis batch baru, atau pakai --force kalau memang sengaja.")
+    batch = json.loads(src.read_text(encoding="utf-8"))
     if isinstance(batch, dict):
         batch = batch.get("items") or batch.get("rows") or [batch]
     rows = {r["id"]: r for r in load_rows()}
-    added = 0
+    baru, diperbarui, ids = 0, 0, []
     for item in batch:
         if not item.get("id"):
             print(f"SKIP baris tanpa id: {item}", file=sys.stderr)
@@ -82,10 +89,14 @@ def cmd_add(path):
         item = {k: ("" if v is None else str(v)) for k, v in item.items()}
         item.setdefault("status", "Menunggu review SML")
         item["diperbarui"] = now()
+        if item["id"] in rows:
+            diperbarui += 1
+        else:
+            baru += 1
         rows[item["id"]] = {**rows.get(item["id"], {}), **item}
-        added += 1
+        ids.append(item["id"])
     save_rows(list(rows.values()))
-    print(f"OK {added} baris disimpan ke {CSV_PATH}")
+    print(f"OK {baru + diperbarui} baris disimpan ke {CSV_PATH} (baru: {baru}, diperbarui: {diperbarui}, id: {', '.join(ids)})")
 
 
 def cmd_status(ids, status, note):
@@ -181,6 +192,7 @@ def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
     a = sub.add_parser("add"); a.add_argument("json_file"); a.add_argument("--send", action="store_true")
+    a.add_argument("--force", action="store_true")
     s = sub.add_parser("status"); s.add_argument("ids"); s.add_argument("status")
     s.add_argument("--note"); s.add_argument("--send", action="store_true")
     sh = sub.add_parser("show"); sh.add_argument("--status")
@@ -189,7 +201,7 @@ def main():
     args = p.parse_args()
 
     if args.cmd == "add":
-        cmd_add(args.json_file)
+        cmd_add(args.json_file, args.force)
     elif args.cmd == "status":
         cmd_status(args.ids, args.status, args.note)
     elif args.cmd == "show":

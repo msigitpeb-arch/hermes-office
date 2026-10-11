@@ -23,11 +23,13 @@ metadata:
 
 ## Mode Tim (Kanban): dipakai kalau profile `content-planner` dan `content-reviewer` ada
 
-Cek dulu dengan `hermes profile list`. Kalau kedua profile ada, alurnya dibagi per peran. Langkah 1-4 di bagian Procedure tetap jadi standar kerja, tapi dikerjakan oleh peran yang berbeda.
+Langkah PERTAMA, sebelum menulis apa pun: jalankan `hermes profile list` lewat terminal. Kalau `content-planner` dan `content-reviewer` ada, kamu WAJIB memakai mode tim ini. Dilarang menyusun content plan sendiri.
 
 **Kalau kamu LEAD (profile default, sedang ngobrol dengan SML):**
-1. Jangan menyusun konten sendiri. Buat kartu Kanban:
+1. Buat kartu Kanban. Pakai tool `kanban_create` kalau tersedia:
    `kanban_create(title="Content plan PeopleSync: <ringkas permintaan>", assignee="content-planner", body="<permintaan SML lengkap: periode, jumlah konten, platform, catatan khusus>. Pakai skill content-planning. Simpan draft ke ~/hermes-data/content-plan/drafts/<task_id>.json lalu request review ke content-reviewer.")`
+   Kalau tool `kanban_create` tidak ada, pakai terminal:
+   `hermes kanban create "Content plan PeopleSync: <ringkas>" --assignee content-planner`, lalu `hermes kanban comment <id> "<isi body di atas>"`.
 2. Balas SML: kartu sudah dibuat, tim sedang bekerja, hasil akan dikirim ke topik ini sebagai file CSV.
 3. Untuk review SML (approve / revisi / tolak), ikuti langkah 6. Revisi dikirim sebagai kartu baru ke content-planner dengan ID baris dan catatan SML di body.
 
@@ -73,11 +75,15 @@ Kalau `delegate_task` tidak tersedia, lakukan pemeriksaan sebagai langkah terpis
 
 ### 4. Simpan dan kirim untuk review SML
 Tambahkan ke setiap baris yang lolos: `skor_checker`, `catatan_checker` (ringkas apa yang sudah dikoreksi), `status` = "Menunggu review SML", `catatan_sml` = "".
-Tulis JSON ke file sementara, lalu jalankan:
+Tulis JSON ke file BARU dengan nama unik (jangan memakai ulang file lama), lalu jalankan:
 
 ```
-python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py add /tmp/content_plan_batch.json --send
+BATCH=~/hermes-data/content-plan/drafts/batch-$(date +%Y%m%d-%H%M%S).json
+# tulis JSON ke $BATCH, lalu:
+python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py add $BATCH --send
 ```
+
+Kalau penulisan file gagal, BERHENTI dan laporkan errornya ke SML. Jangan lanjut menyimpan atau melapor seolah berhasil. Laporan langkah 5 harus memakai ID dan jumlah dari output script (`OK ... baru: n, diperbarui: n, id: ...`), bukan dari ingatanmu.
 
 Script menyimpan ke CSV (baris dengan ID sama akan ditimpa) dan mengirim file CSV ke topik Telegram review.
 
