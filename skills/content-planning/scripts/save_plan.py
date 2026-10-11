@@ -7,6 +7,7 @@ Hanya pakai standard library.
     save_plan.py status CP-1,CP-2 "Approved" [--note "..."] [--send]
     save_plan.py show [--status "Menunggu review SML"]
     save_plan.py send                             kirim file CSV ke Telegram
+    save_plan.py ping                             kirim pesan tes ke topik review (cek thread ID)
 
 Konfigurasi: ~/hermes-data/content-plan/config.env
     REVIEW_CHAT_ID=-100...
@@ -111,7 +112,7 @@ def cmd_show(status):
 
 
 def send_document(caption):
-    cfg = {**read_env(Path.home() / ".hermes" / ".env"), **read_env(CONFIG_PATH), **os.environ}
+    cfg = tg_config()
     token, chat = cfg.get("TELEGRAM_BOT_TOKEN"), cfg.get("REVIEW_CHAT_ID")
     if not token or not chat:
         print("WARN TELEGRAM_BOT_TOKEN atau REVIEW_CHAT_ID belum diset, file tidak dikirim")
@@ -143,6 +144,32 @@ def send_document(caption):
         print(f"WARN gagal kirim ke Telegram: {e}")
 
 
+def tg_config():
+    return {**read_env(Path.home() / ".hermes" / ".env"), **read_env(CONFIG_PATH), **os.environ}
+
+
+def send_ping():
+    cfg = tg_config()
+    token, chat, thread = cfg.get("TELEGRAM_BOT_TOKEN"), cfg.get("REVIEW_CHAT_ID"), cfg.get("REVIEW_THREAD_ID")
+    if not token or not chat:
+        print("WARN TELEGRAM_BOT_TOKEN atau REVIEW_CHAT_ID belum diset")
+        return
+    data = {"chat_id": chat, "text": f"Tes: file review Content Planning akan dikirim ke topik ini (thread {thread or '-'})."}
+    if thread:
+        data["message_thread_id"] = thread
+    req = urllib.request.Request(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        data=json.dumps(data).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            ok = json.loads(resp.read()).get("ok")
+        print("OK pesan tes terkirim, cek di topik mana pesan itu muncul" if ok else "WARN Telegram menolak kiriman")
+    except Exception as e:
+        print(f"WARN gagal kirim ke Telegram: {e}")
+
+
 def caption_ringkas():
     rows = load_rows()
     menunggu = sum(r.get("status") == "Menunggu review SML" for r in rows)
@@ -158,6 +185,7 @@ def main():
     s.add_argument("--note"); s.add_argument("--send", action="store_true")
     sh = sub.add_parser("show"); sh.add_argument("--status")
     sub.add_parser("send")
+    sub.add_parser("ping")
     args = p.parse_args()
 
     if args.cmd == "add":
@@ -166,6 +194,9 @@ def main():
         cmd_status(args.ids, args.status, args.note)
     elif args.cmd == "show":
         cmd_show(args.status)
+    if args.cmd == "ping":
+        send_ping()
+        return
     if args.cmd == "send" or getattr(args, "send", False):
         send_document(caption_ringkas())
 

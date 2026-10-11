@@ -7,9 +7,14 @@ THREAD_ID="$1"
 GROUP_ID="-1004495571239"
 
 if [ -z "$THREAD_ID" ]; then
-  echo "Isi thread ID topik Content Planning. Contoh: bash install_skills.sh 6"
+  echo "Isi thread ID topik Content Planning."
+  echo "Cara cari: di Telegram, buka topik Content Planning, klik kanan pesan apa saja > Copy Message Link."
+  echo "Link-nya berbentuk https://t.me/c/4495571239/<THREAD_ID>/<MSG_ID>. Ambil angka di tengah."
   exit 1
 fi
+case "$THREAD_ID" in
+  ''|*[!0-9]*) echo "Thread ID harus angka, contoh: bash install_skills.sh 7"; exit 1 ;;
+esac
 
 # 1. Salin skill
 mkdir -p ~/.hermes/skills/marketing
@@ -35,6 +40,9 @@ fi
 echo "[3/3] Grup diizinkan: $(grep '^TELEGRAM_GROUP_ALLOWED_CHATS=' ~/.hermes/.env)"
 
 hermes gateway restart >/dev/null 2>&1 || systemctl --user restart hermes-gateway
+echo
+python3 ~/.hermes/skills/marketing/content-planning/scripts/save_plan.py ping
+echo "Pastikan pesan tes muncul di topik Content Planning. Kalau muncul di topik lain, jalankan ulang dengan thread ID yang benar."
 echo
 echo "Selesai. Di topik Content Planning, kirim:"
 echo "  /content-planning buat content plan 2 minggu untuk PeopleSync"

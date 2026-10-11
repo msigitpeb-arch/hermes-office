@@ -1,7 +1,7 @@
 ---
 name: content-planning
 description: Content planner PeopleSync. Menyusun content plan bertema masalah SaaS dan keuntungan software sekali beli, lewat alur pembuat lalu pemeriksa (koreksi + approval), lalu menyimpan hasilnya ke spreadsheet untuk direview SML.
-version: 1.0.0
+version: 1.1.0
 author: SML
 metadata:
   hermes:
@@ -81,8 +81,35 @@ python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py add /tmp/content_plan_batch.jso
 
 Script menyimpan ke CSV (baris dengan ID sama akan ditimpa) dan mengirim file CSV ke topik Telegram review.
 
-### 5. Laporan ke user
-Balas singkat dalam bahasa Indonesia: jumlah konten yang lolos, yang dibuang beserta alasannya, sebaran pilar dan funnel, lalu daftar ID + judul_hook. Akhiri dengan cara review: "Balas dengan: approve CP-xxx, revisi CP-xxx <catatan>, atau tolak CP-xxx".
+### 5. Laporan ke user (format WAJIB, jangan diubah)
+Kirim SATU pesan saja setelah semua langkah selesai. Jangan kirim pesan progres, narasi langkah ("sekarang saya memeriksa..."), JSON, atau isi CSV ke chat. Detail lengkap ada di file CSV.
+
+Format persis seperti ini (isi bagian dalam <>, baris kosong antar konten):
+
+```
+Content plan PeopleSync siap direview
+<tgl mulai>–<tgl selesai> · <n> konten · lolos pemeriksa <n>/<total draft>
+Funnel: TOFU <n> · MOFU <n> · BOFU <n>
+
+<ID> · <Hari tgl/bln> · <Platform> <Format> · <Funnel>
+<judul_hook>
+
+<ID> · <Hari tgl/bln> · <Platform> <Format> · <Funnel>
+<judul_hook>
+
+Dibuang: <ID: alasan singkat>   ← hapus baris ini kalau tidak ada yang dibuang
+
+Detail lengkap ada di file CSV di topik ini.
+Balas: approve CP-xxx · revisi CP-xxx <catatan> · tolak CP-xxx <alasan>
+```
+
+Contoh satu konten:
+```
+CP-20261014-02 · Rab 14/10 · Instagram Carousel · TOFU
+Simulasi biaya software payroll 100 karyawan selama 3 tahun: sewa vs beli putus
+```
+
+Larangan format: tanpa heading (#), tanpa tabel, tanpa bullet bertingkat, tanpa bold/italic, tanpa garis pemisah (— atau ---), tanpa skor checker, tanpa nama pilar di daftar. Satu konten = dua baris.
 
 ### 6. Saat user mereview
 - `approve <ID>` → `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py status <ID> "Approved"`
@@ -103,4 +130,5 @@ Untuk status dengan catatan: `save_plan.py status <ID> "<status>" --note "<catat
 
 ## Verification
 - Setiap baris di CSV punya skor_checker ≥ 80 dan status "Menunggu review SML".
+- Laporan ke user mengikuti format langkah 5 persis, satu pesan.
 - Script mengeluarkan "OK" dan file terkirim ke Telegram (atau pesan error yang dilaporkan ke user).
