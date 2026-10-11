@@ -7,7 +7,7 @@ Hanya pakai standard library.
     save_plan.py status CP-1,CP-2 "Approved" [--note "..."] [--send]
     save_plan.py show [--status "Menunggu review SML"]
     save_plan.py send                             kirim file CSV ke Telegram
-    save_plan.py detail CP-1,CP-2                 tampilkan isi konten (skor, catatan, naskah) di topik reviewer
+    save_plan.py detail CP-1,CP-2                 tampilkan ringkasan konten (skor, hook, catatan) di topik reviewer
     save_plan.py detail --status "Menunggu review SML"
     save_plan.py sheet                            kirim ulang semua baris ke Google Sheets
     save_plan.py ping                             kirim pesan tes ke topik review dan topik reviewer
@@ -235,10 +235,9 @@ def potong(text, batas=3900):
 
 
 HARI = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+# Ringkasan saja. Naskah, FAQ, dan field meta dibaca di CSV atau Google Sheets.
 RINCIAN = [
-    ("Hook", "judul_hook"), ("Pesan utama", "pesan_utama"), ("Keyword", "keyword"),
-    ("Negara/bahasa", "negara_bahasa"), ("Search intent", "search_intent"), ("Meta title", "meta_title"),
-    ("Meta description", "meta_description"), ("Slug", "slug"), ("CTA", "cta"),
+    ("Hook", "judul_hook"), ("Pesan utama", "pesan_utama"), ("Keyword", "keyword"), ("CTA", "cta"),
     ("Catatan reviewer", "catatan_checker"), ("Catatan SML", "catatan_sml"),
 ]
 
@@ -259,15 +258,11 @@ def format_detail(r):
         f"slop {isi('skor_slop') or '-'} · AI {isi('skor_ai') or '-'} · putaran {isi('revisi_ke') or '-'}",
     ]
     baris += [f"{label}: {isi(k)}" for label, k in RINCIAN if isi(k)]
-    if isi("naskah"):
-        baris += ["", "Naskah:", isi("naskah").replace(" | ", "\n")]
-    if isi("faq"):
-        baris += ["", "FAQ:", isi("faq").replace(" | ", "\n")]
     return "\n".join(baris)
 
 
 def send_detail(ids=None, status=None):
-    """Satu pesan per konten ke topik reviewer, supaya isinya terbaca tanpa membuka CSV."""
+    """Satu pesan ringkasan per konten ke topik reviewer."""
     rows = [r for r in load_rows() if (ids is None or r["id"] in ids) and (not status or r.get("status") == status)]
     if not rows:
         print("WARN tidak ada baris yang cocok untuk ditampilkan")
