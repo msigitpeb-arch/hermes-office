@@ -1,12 +1,28 @@
 # Hermes Office
 
-Virtual office untuk Hermes Agent di VPS SML: skill, persona (profile Hermes), dan script setup.
+Virtual office untuk Hermes Agent di VPS SML: skill, persona (profile Hermes), script setup, dan news scraper harian.
 
-## Pasang pertama kali
+| Folder | Isi |
+|---|---|
+| `skills/` | Skill Hermes (content-planning) |
+| `team/` | SOUL.md tiap persona |
+| `news-scraper/` | Berita harian 15:00 & 21:00 WIB ke Telegram/WhatsApp (dulu repo wa-news-scraper) |
+
+## News scraper
+
+Pindah dari `~/wa-news-scraper` yang sudah jalan:
 
 ```bash
 cd ~ && git clone https://github.com/msigitpeb-arch/hermes-office.git
-cd hermes-office
+bash ~/hermes-office/news-scraper/migrate_from_wa_repo.sh
+```
+
+Script membawa `.env` dan riwayat berita, membuat venv, dan mengganti path di crontab. Detail lengkap di `news-scraper/README.md`.
+
+## Skill & tim Hermes
+
+```bash
+cd ~/hermes-office
 bash install_skills.sh <THREAD_ID_TOPIK_CONTENT_PLANNING>
 bash setup_team.sh
 ```

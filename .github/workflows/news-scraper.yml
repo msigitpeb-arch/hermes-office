@@ -1,0 +1,28 @@
+name: News Scraper (manual fallback)
+
+# Jadwal utama jalan di VPS (cron 15:00 & 21:00 WIB) memakai LLM via 9router.
+# Workflow ini cadangan manual tanpa LLM (--no-llm), karena runner GitHub tidak
+# bisa menjangkau 9router. Butuh secret FONNTE_TOKEN dan WA_TARGET_NUMBER di repo ini.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  scrape-and-send:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: news-scraper
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: news-scraper/requirements.txt
+      - run: pip install -r requirements.txt
+      - name: Run scraper
+        env:
+          FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
+          WA_TARGET_NUMBER: ${{ secrets.WA_TARGET_NUMBER }}
+        run: python daily_scraper.py --no-llm
