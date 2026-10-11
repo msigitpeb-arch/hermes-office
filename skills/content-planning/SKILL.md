@@ -45,7 +45,8 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
    - Field pencarian (`keyword`, `negara_bahasa`, `search_intent`, `meta_title`, `meta_description`, `slug`, `faq`) diisi olehmu. Kalau tool pencarian web tersedia, cari dulu keyword utamanya: pastikan memang dicari orang, lihat pertanyaan yang muncul di hasil teratas, dan pilih sudut yang belum dibahas di sana.
    - Jalankan `save_plan.py show` supaya keyword dan sudut pandang tidak mengulang konten yang sudah ada.
 2. Simpan ke `drafts/<run>-plan.json` (ganti `<run>` dengan ID kartumu).
-3. Buat kartu untuk writer: `kanban_create(title="Naskah content plan <run>", assignee="content-writer", body="Rencana di ~/hermes-data/content-plan/drafts/<run>-plan.json. Tulis naskah tiap baris. Pakai skill content-planning, peran CONTENT-WRITER. Run ID: <run>.")`
+3. Buat kartu untuk writer: `kanban_create(title="Naskah content plan <run>", assignee="content-writer", body="Rencana di ~/hermes-data/content-plan/drafts/<run>-plan.json. Tulis naskah tiap baris. Pakai skill content-planning, peran CONTENT-WRITER. Run ID: <run>.", max_runtime_seconds=3600)`
+   Batas waktu wajib 3600. Jangan mengisi 0: nol dibaca sebagai batas nol detik, bukan "tanpa batas", dan writer akan dimatikan di detik ke-60.
 4. `kanban_complete` dengan ringkasan: jumlah konten, sebaran pilar dan funnel.
 
 **Kalau kamu CONTENT-WRITER (penulis, worker Kanban):**
