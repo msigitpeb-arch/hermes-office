@@ -43,7 +43,7 @@ Pakai di Telegram: `/content-planning buat content plan 2 minggu untuk PeopleSyn
 |---|---|---|
 | default (lead) | Ngobrol dengan SML, membuat kartu Kanban | sesuai config default |
 | content-planner | Menyusun draft, lalu `kanban_request_review` | ag/gemini-3.8-flash-high |
-| content-reviewer | Mengoreksi dan memberi approval, menyimpan ke CSV + kirim ke Telegram | ag/claude-sonnet-4-6 |
+| content-reviewer | Mengoreksi dan memberi approval, menyimpan ke CSV + kirim ke Telegram | cx/gpt-6-astra |
 
 ```bash
 cd ~/hermes-office && git pull

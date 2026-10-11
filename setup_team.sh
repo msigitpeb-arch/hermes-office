@@ -11,8 +11,19 @@ REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 HERMES_ROOT="${HERMES_HOME:-$HOME/.hermes}"
 SKILL_SRC="$REPO_DIR/skills/content-planning"
 
+# Semua profile lewat 9router (provider custom)
+ROUTER_URL="http://127.0.0.1:20128/v1"
+LEAD_MODEL="ag/gemini-3.8-flash"
 PLANNER_MODEL="ag/gemini-3.8-flash-high"
-REVIEWER_MODEL="ag/claude-sonnet-4-6"
+REVIEWER_MODEL="cx/gpt-6-astra"
+
+use_router() {  # $1 = profile ("" untuk default), $2 = model
+  local p=(); [ -n "$1" ] && p=(-p "$1")
+  hermes "${p[@]}" config set model.provider custom >/dev/null
+  hermes "${p[@]}" config set model.base_url "$ROUTER_URL" >/dev/null
+  hermes "${p[@]}" config set model.default "$2" >/dev/null
+  echo "   ${1:-default} -> 9router / $2"
+}
 
 command -v hermes >/dev/null || { echo "hermes tidak ditemukan di PATH"; exit 1; }
 
@@ -42,7 +53,7 @@ setup_profile() {
   # polling bot yang sama (Telegram akan error 409 Conflict).
   [ -f "$dir/.env" ] && sed -i '/^TELEGRAM_/d' "$dir/.env"
 
-  hermes -p "$name" config set model.default "$model" >/dev/null && echo "   $name -> model $model"
+  use_router "$name" "$model"
   hermes -p "$name" tools enable kanban >/dev/null 2>&1 || true
 }
 setup_profile content-planner "Pembuat content plan PeopleSync" "$PLANNER_MODEL" "$REPO_DIR/team/content-planner.SOUL.md"
@@ -51,6 +62,7 @@ setup_profile content-reviewer "Pemeriksa dan approval content plan PeopleSync" 
 echo "== 3/5 Lead (profile default)"
 touch "$HERMES_ROOT/SOUL.md"
 grep -q "Peran sebagai Lead tim" "$HERMES_ROOT/SOUL.md" || cat "$REPO_DIR/team/lead.SOUL.append.md" >> "$HERMES_ROOT/SOUL.md"
+use_router "" "$LEAD_MODEL"
 hermes tools enable kanban >/dev/null 2>&1 || true
 
 echo "== 4/5 Kanban + satu gateway untuk semua profile"
