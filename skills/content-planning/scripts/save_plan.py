@@ -10,6 +10,7 @@ Hanya pakai standard library.
     save_plan.py detail CP-1,CP-2                 tampilkan ringkasan konten (skor, hook, catatan) di topik reviewer
     save_plan.py detail --status "Menunggu review SML"
     save_plan.py sheet                            kirim ulang semua baris ke Google Sheets
+    save_plan.py kosongkan draft.json CP-1,CP-2   hapus naskah baris yang harus ditulis ulang dari nol
     save_plan.py ping                             kirim pesan tes ke topik review dan topik reviewer
     save_plan.py notify "teks" | @file.txt       kirim laporan/eskalasi ke topik review
     save_plan.py notify --to reviewer @file.txt   kirim hasil pemeriksaan ke topik reviewer
@@ -132,6 +133,27 @@ def cmd_add(path, force=False):
     save_rows(list(rows.values()))
     print(f"OK {baru + diperbarui} baris disimpan ke {CSV_PATH} (baru: {baru}, diperbarui: {diperbarui}, id: {', '.join(ids)})")
     return ids
+
+
+def cmd_kosongkan(path, ids):
+    """Hapus naskah yang ditolak dari file draft, supaya penulis tidak menambal versi lama."""
+    src = Path(path).expanduser()
+    if not src.exists():
+        sys.exit(f"ERROR file draft tidak ada: {src}")
+    data = json.loads(src.read_text(encoding="utf-8"))
+    rows = data if isinstance(data, list) else (data.get("items") or data.get("rows") or [data])
+    targets = {i.strip() for i in ids.split(",") if i.strip()}
+    arsip = src.with_name(f"{src.stem}.ditolak-{datetime.datetime.now():%H%M%S}.json")
+    arsip.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    kena = []
+    for r in rows:
+        if r.get("id") in targets and r.get("naskah"):
+            r["naskah"] = ""
+            kena.append(r["id"])
+    src.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    missing = targets - set(kena)
+    print(f"OK naskah dikosongkan: {', '.join(kena) or '-'} (versi lama diarsipkan di {arsip.name})"
+          + (f". Tidak ditemukan atau sudah kosong: {', '.join(sorted(missing))}" if missing else ""))
 
 
 def cmd_status(ids, status, note):
@@ -297,6 +319,7 @@ def main():
     sh = sub.add_parser("show"); sh.add_argument("--status")
     sub.add_parser("send")
     sub.add_parser("sheet")
+    k = sub.add_parser("kosongkan"); k.add_argument("json_file"); k.add_argument("ids")
     d = sub.add_parser("detail"); d.add_argument("ids", nargs="?"); d.add_argument("--status")
     sub.add_parser("ping")
     n = sub.add_parser("notify"); n.add_argument("text", help="teks pesan, atau @path/file.txt")
@@ -314,6 +337,10 @@ def main():
         if not args.ids and not args.status:
             p.error("isi ID (CP-1,CP-2) atau --status")
         send_detail({i.strip() for i in args.ids.split(",") if i.strip()} if args.ids else None, args.status)
+        return
+
+    if args.cmd == "kosongkan":
+        cmd_kosongkan(args.json_file, args.ids)
         return
 
     ids_baru = None

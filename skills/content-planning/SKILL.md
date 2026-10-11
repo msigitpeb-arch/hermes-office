@@ -78,7 +78,7 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
 4. `kanban_request_review` dengan reviewer `content-reviewer` dan summary: path file, jumlah konten, dan putaran revisi ke berapa.
 5. Kalau kartu kembali dengan permintaan perubahan, timpa file `-copy.json`, lalu ulangi langkah 3-4:
    - Keputusan "revisi": perbaiki HANYA baris dan bagian yang dikoreksi.
-   - Keputusan "tulis_ulang": buang naskah baris itu dan tulis dari kertas kosong dengan pembuka dan susunan yang berbeda. Jangan menambal kalimat lama atau sekadar mengganti kata yang ditandai. Field rencana (hook, keyword, outline) tetap dipakai.
+   - Keputusan "tulis_ulang": field `naskah` baris itu sudah dikosongkan reviewer. Tulis dari kertas kosong dengan pembuka dan susunan yang berbeda. Jangan membuka file arsip `*.ditolak-*.json` dan jangan mengulang kerangka lama. Field rencana (hook, keyword, outline) tetap dipakai.
    - Jangan membantah koreksi; kalau koreksi bertentangan dengan brief, ikuti brief dan jelaskan singkat di summary.
 
 **Kalau kamu CONTENT-REVIEWER (editor + approval):**
@@ -92,7 +92,9 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
    <ID> · TULIS ULANG · slop <n> · AI <n atau n/a> · <temuan utama>
    Hasil: <a> approve, <b> revisi, <c> tulis ulang. <Dikembalikan ke writer. | Disimpan ke CSV, ringkasan menyusul di topik ini.>
    ```
-4. Ada baris yang belum layak approve → `kanban_request_changes` berisi koreksi per ID dalam format JSON rubrik. Kartu kembali ke writer. Ulangi sampai semua baris approve.
+4. Ada baris yang belum layak approve:
+   - Untuk baris "tulis_ulang", kosongkan dulu naskahnya supaya writer tidak bisa menambal versi lama: `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py kosongkan ~/hermes-data/content-plan/drafts/<run>-copy.json <ID,ID>`. Versi lama diarsipkan otomatis.
+   - Lalu `kanban_request_changes` berisi koreksi per ID dalam format JSON rubrik. Kartu kembali ke writer. Ulangi sampai semua baris approve.
 5. **Batas aman: putaran ke-6.** Kalau di putaran ke-6 masih ada baris yang gagal, jangan kirim balik lagi. Simpan baris yang sudah approve (langkah 6), lalu `kanban_block` dengan alasan, dan kirim eskalasi ke SML:
    `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py notify "Eskalasi content plan <run>: <n> konten belum lolos setelah 6 putaran. ID: <...>. Masalah utama: <ringkas>. Balas dengan arahan, atau minta lead membuat ulang."`
 6. Semua baris approve → isi `skor_checker`, `skor_seo`, `skor_slop`, `skor_ai`, `catatan_checker`, `revisi_ke` (jumlah putaran), `status` = "Menunggu review SML", `catatan_sml` = "". Simpan dengan langkah 4 Procedure (save_plan.py add ... --send). Dengan `--send`, script juga menampilkan ringkasan tiap konten yang disimpan (skor, hook, pesan utama, keyword, CTA, catatan) sebagai pesan di topik Content Reviewer. Naskah lengkap hanya ada di CSV dan Google Sheets, jadi jangan menyalinnya ke chat.
