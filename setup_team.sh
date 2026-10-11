@@ -24,10 +24,15 @@ use_router() {  # $1 = profile ("" untuk default), $2 = model
   hermes "${p[@]}" config set model.provider custom >/dev/null
   hermes "${p[@]}" config set model.base_url "$ROUTER_URL" >/dev/null
   hermes "${p[@]}" config set model.default "$2" >/dev/null
+  # Tanpa model.api_key, profile hasil --clone bisa mengirim key lama ke 9router (HTTP 401)
+  if [ -n "$NR_KEY" ]; then hermes "${p[@]}" config set model.api_key "$NR_KEY" >/dev/null; fi
   echo "   ${1:-default} -> 9router / $2"
 }
 
 command -v hermes >/dev/null || { echo "hermes tidak ditemukan di PATH"; exit 1; }
+# API key 9router: dari environment, atau dari baris NR_KEY di ~/.bashrc
+[ -n "$NR_KEY" ] || NR_KEY="$(sed -n 's/^ *\(export \)\{0,1\}NR_KEY=//p' ~/.bashrc 2>/dev/null | tail -1 | tr -d "\"'")"
+[ -n "$NR_KEY" ] || echo "PERINGATAN: NR_KEY kosong, model.api_key tiap profile tidak diisi. Worker bisa gagal dengan HTTP 401."
 
 echo "== 1/5 Skill content-planning di profile default"
 mkdir -p "$HERMES_ROOT/skills/marketing"
