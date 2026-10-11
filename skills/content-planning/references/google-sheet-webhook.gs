@@ -17,7 +17,9 @@ function doPost(e) {
   } catch (err) {
     return balas({ ok: false, error: 'JSON tidak valid' });
   }
-  if (TOKEN === 'GANTI_DENGAN_TOKEN_RAHASIA' || body.token !== TOKEN) {
+  // Placeholder sengaja tidak ditulis ulang di sini: "ganti semua" akan ikut mengubahnya
+  // dan membuat semua kiriman ditolak.
+  if (TOKEN.indexOf('GANTI_') === 0 || body.token !== TOKEN) {
     return balas({ ok: false, error: 'token salah atau belum diganti' });
   }
   const fields = body.fields || [];
