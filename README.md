@@ -53,3 +53,12 @@ bash setup_team.sh
 Semua profile dilayani satu gateway (`gateway.multiplex_profiles: true`). Worker hanya jalan sebagai proses saat ada kartu Kanban, jadi tidak memakan RAM saat idle.
 
 Mission Control 3D: [Ruang](https://github.com/yugienugraha/ruang) (read-only, membaca lewat `hermes` CLI).
+
+## Ruang (Mission Control 3D)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yugienugraha/ruang/main/install.sh | bash -s -- --service
+bash ~/hermes-office/ruang_patch_timeout.sh     # wajib di VPS 2 vCPU, ulangi setiap update Ruang
+```
+
+Buka lewat tunnel: `ssh -L 3001:127.0.0.1:3001 ubuntu@IP_VPS`, lalu http://127.0.0.1:3001. Tutup tab Ruang kalau tidak dipakai, karena polling-nya ikut memakan CPU agent.
