@@ -48,7 +48,7 @@ Modul
 4. **Fitur yang menyelesaikan pekerjaan HR** (MOFU/BOFU): PPh 21 TER, BPJS, THR, lembur, kontrak PKWT, absensi geofence, export bank.
 5. **Bukti & ajakan** (BOFU): demo gratis, garansi 30 hari, konsultasi teknis, unlimited karyawan.
 
-Argumen masalah SaaS di pilar 1 dan 2 bersifat umum dan boleh dibahas tanpa angka. Kalau butuh statistik industri, tulis "[perlu sumber]" di sumber_klaim, jangan mengarang angka.
+Argumen masalah SaaS di pilar 1 dan 2 bersifat umum dan boleh dibahas tanpa angka. Statistik industri dan fakta regulasi hanya boleh dipakai dengan sumber yang bisa dibuka (lembaga atau media, tahun, URL), dicari lewat pencarian web. Tidak ketemu sumbernya: jangan ditulis, dan jangan mengarang angka.
 
 ## CTA resmi
 - "Request Demo" / "Coba Demo Gratis"

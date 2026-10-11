@@ -54,8 +54,24 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
    - LinkedIn Single Post / Artikel: 120-250 kata, paragraf pendek, hook di baris pertama.
    - Instagram Carousel: tulis per slide, format `Slide 1: ... | Slide 2: ...` (5-8 slide), lalu `Caption: ...`.
    - Reel: `Hook (0-3 dtk): ... | Isi: ... | Penutup: ...` lalu `Caption: ...`.
-   - Artikel Blog: 800-1.500 kata dalam Markdown. Satu H1, H2/H3 berupa pertanyaan atau frasa yang dicari, jawaban langsung 40-60 kata tepat di bawah tiap heading pertanyaan, lalu bagian FAQ dari field `faq`.
-   - Selalu akhiri dengan CTA dari baris itu. Klaim produk hanya dari brief.
+   - Artikel Blog (Website): 800-1.500 kata dalam Markdown, mengikuti "Kerangka konten Website" di bawah.
+   - Berita Website: 400-700 kata dalam Markdown. Piramida terbalik: paragraf pertama menjawab apa, siapa, kapan, dan dampaknya bagi HR atau finance. Wajib berangkat dari peristiwa atau aturan nyata yang punya sumber bertanggal. Tanpa sumber, jangan ditulis sebagai berita; ubah menjadi Artikel Blog.
+   - Selalu akhiri dengan CTA dari baris itu.
+   - Sumber fakta dibedakan dua:
+     - Klaim tentang PeopleSync (fitur, harga, garansi, cara kerja) HANYA dari brief.
+     - Fakta umum HR, payroll, pajak, dan regulasi boleh dipakai kalau kamu menemukannya lewat pencarian web dan mencantumkan sumbernya (nama lembaga atau media, tahun, URL) di bagian "Sumber" dan di `sumber_klaim`. Tidak ketemu sumbernya = jangan ditulis. Angka contoh buatan sendiri wajib diberi label "ilustrasi" lengkap dengan asumsinya.
+
+   Kerangka konten Website (inilah yang membuat SEO dan GEO-nya kuat):
+   1. H1 memuat keyword utama, paling panjang 60 karakter.
+   2. Blok "Ringkasan" tepat di bawah H1: 2-3 kalimat (40-60 kata) yang langsung menjawab pertanyaan pencari dan bisa dikutip utuh tanpa membaca sisanya.
+   3. Keyword utama muncul di 100 kata pertama, di satu H2, dan di `meta_title`, `meta_description`, `slug`. Sisanya memakai variasi dan istilah terkait, bukan pengulangan.
+   4. H2/H3 berupa pertanyaan atau frasa yang benar-benar dicari. Di bawah tiap heading pertanyaan ada jawaban langsung 40-60 kata, baru penjelasannya.
+   5. Paling sedikit satu tabel (perbandingan atau hitungan) dan satu daftar bernomor (langkah atau checklist).
+   6. Paling sedikit tiga kalimat kunci yang berdiri sendiri: menyebut subjeknya dengan nama, memuat angka beserta satuan, periode, dan asumsinya. Contoh: "Pada simulasi 100 karyawan dengan tarif Rp 45.000 per user per bulan, biaya langganan software payroll mencapai Rp 162 juta dalam 3 tahun."
+   7. Definisi istilah penting ditulis satu kalimat dengan pola "X adalah ...".
+   8. Nama entitas konsisten dari awal sampai akhir ("PeopleSync", "HR & payroll on-premise").
+   9. Bagian "FAQ" dari field `faq`, lalu bagian "Sumber" berisi daftar rujukan fakta umum.
+   10. Paling sedikit satu tautan ke peoplesync.id dan satu CTA sesuai funnel.
    - Ikuti "Aturan Bahasa" di bawah, terutama bagian menulis seperti manusia.
 2. Simpan semua baris (field rencana + `naskah`) ke `drafts/<run>-copy.json`.
 3. Cek sendiri sebelum mengirim: `python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py ~/hermes-data/content-plan/drafts/<run>-copy.json`. Baris dengan `lolos: false` ditulis ulang dulu. Jangan mengirim naskah yang kamu tahu akan gagal.
@@ -89,16 +105,21 @@ Kalau profile tim tidak lengkap, kerjakan seluruh Procedure sendiri seperti di b
 ## Procedure
 
 ### 0. Pahami permintaan
-Default kalau user tidak menyebut: 2 minggu, 3 konten per minggu, platform LinkedIn + Instagram, mulai Senin terdekat. Tanya HANYA kalau permintaannya bertentangan dengan brief.
+Default kalau user tidak menyebut: 2 minggu, 3 konten per minggu, mulai Senin terdekat. Tanya HANYA kalau permintaannya bertentangan dengan brief.
+
+Platform ditentukan oleh isi permintaan, bukan dicampur:
+- User menyebut artikel, berita, news, blog, atau website → SEMUA baris `platform` = "Website". Pakai `format` "Artikel Blog" untuk artikel dan "Berita Website" untuk berita/news. Jangan menyisipkan konten Instagram atau LinkedIn.
+- User menyebut platform lain secara eksplisit (misal "untuk LinkedIn saja") → ikuti persis.
+- Tidak menyebut satu pun dari itu → normal: LinkedIn + Instagram dengan format sosial (Carousel, Reel, Single Post, Artikel LinkedIn, Thread).
+- Kata SEO, GEO, AEO, atau ranking saja TIDAK mengubah platform. Kata-kata itu hanya menaikkan tuntutan pencarian pada platform yang sudah terpilih.
 
 - "Setiap hari 1 konten" berarti 7 konten per minggu, satu `tanggal_tayang` per hari.
-- User menyebut SEO, GEO, AEO, artikel, blog, atau ranking → sertakan format Artikel Blog (platform "Website"), paling sedikit sepertiga dari batch.
 - `negara_bahasa` default "Indonesia / id". Kalau user minta banyak negara, PeopleSync tetap produk untuk perusahaan di Indonesia: buat versi "Global / en" untuk pencari berbahasa Inggris yang mengurus HR atau payroll di Indonesia (kantor regional, investor, konsultan). Jangan menulis seolah PeopleSync mengikuti aturan pajak atau ketenagakerjaan negara lain. Versi bahasa lain mendapat baris dan ID sendiri.
 
 ### 1. PEMBUAT (Maker): susun draft
 Baca brief produk dulu. Lalu susun konten sebagai JSON array dengan field berikut (semua wajib, string):
 
-`id` (format CP-YYYYMMDD-NN), `tanggal_tayang` (YYYY-MM-DD), `platform`, `format` (Carousel, Reel, Single Post, Artikel LinkedIn, Artikel Blog, Thread), `pilar`, `funnel` (TOFU, MOFU, BOFU), `judul_hook`, `pesan_utama` (1-2 kalimat), `outline` (poin-poin dipisah " | "), `cta`, `keyword` (keyword utama di depan, lalu turunannya, dipisah koma), `negara_bahasa` (misal "Indonesia / id"), `search_intent` (informasional, komersial, atau transaksional), `meta_title` (≤ 60 karakter), `meta_description` (140-160 karakter), `slug`, `faq` (3-5 tanya-jawab, format `T: ... J: ...` dipisah " | "), `sumber_klaim` (bagian brief yang dipakai, atau "-" kalau tidak ada klaim produk), `naskah` (teks final siap posting; di mode tim diisi oleh writer).
+`id` (format CP-YYYYMMDD-NN), `tanggal_tayang` (YYYY-MM-DD), `platform`, `format` (Carousel, Reel, Single Post, Artikel LinkedIn, Thread untuk sosial; Artikel Blog, Berita Website untuk website), `pilar`, `funnel` (TOFU, MOFU, BOFU), `judul_hook`, `pesan_utama` (1-2 kalimat), `outline` (poin-poin dipisah " | "), `cta`, `keyword` (keyword utama di depan, lalu turunannya, dipisah koma), `negara_bahasa` (misal "Indonesia / id"), `search_intent` (informasional, komersial, atau transaksional), `meta_title` (≤ 60 karakter), `meta_description` (140-160 karakter), `slug`, `faq` (3-5 tanya-jawab, format `T: ... J: ...` dipisah " | "), `sumber_klaim` (bagian brief yang dipakai, atau "-" kalau tidak ada klaim produk), `naskah` (teks final siap posting; di mode tim diisi oleh writer).
 
 Untuk format sosial pendek (Carousel, Reel, Single Post, Thread), `meta_title`, `meta_description`, `slug`, dan `faq` diisi "-".
 
@@ -107,6 +128,8 @@ Aturan pembuat:
 - Konten TOFU membahas masalah pembaca (HR, finance, owner), bukan jualan. Produk baru muncul di MOFU dan BOFU.
 - Hook spesifik dan konkret. Hindari hook generik seperti "Tahukah kamu?".
 - Setiap klaim produk HARUS ada di brief. Angka penghematan wajib ditulis sebagai simulasi, bukan janji.
+- Fakta umum di luar produk (regulasi, statistik, praktik industri) hanya boleh dipakai dengan sumber yang bisa dibuka. Tulis sumbernya di `sumber_klaim`.
+- Untuk konten Website, pilih keyword yang benar-benar dicari: cari dulu di web, lihat pertanyaan yang muncul di hasil teratas, dan pakai pertanyaan itu sebagai H2 serta isi `faq`.
 - Jangan menyebut atau menjelekkan merek kompetitor.
 
 ### 2. PEMERIKSA (Checker): koreksi + approval
