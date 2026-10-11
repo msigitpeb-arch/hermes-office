@@ -23,7 +23,7 @@ Script membawa `.env` dan riwayat berita, membuat venv, dan mengganti path di cr
 
 ```bash
 cd ~/hermes-office
-bash install_skills.sh <THREAD_ID_TOPIK_CONTENT_PLANNING>
+bash install_skills.sh <THREAD_ID_TOPIK_CONTENT_PLANNING> [THREAD_ID_TOPIK_CONTENT_REVIEWER]
 bash setup_team.sh
 ```
 
@@ -34,6 +34,28 @@ Content planner PeopleSync (tema: masalah SaaS dan keuntungan software sekali be
 Alur: pembuat menyusun draft → pemeriksa (profile content-reviewer, model berbeda) mengoreksi dan memberi skor/approval → baris yang lolos disimpan ke `~/hermes-data/content-plan/peoplesync_content_plan.csv` dengan status "Menunggu review SML" → file CSV dikirim ke topik Telegram → SML membalas `approve CP-xxx`, `revisi CP-xxx <catatan>`, atau `tolak CP-xxx <alasan>`.
 
 Pakai di Telegram: `/content-planning buat content plan 2 minggu untuk PeopleSync`
+
+Perintahnya tidak kaku. `install_skills.sh` memasang alias `/konten`, `/cp`, `/content-plan`, `/content-planing`, dan `/contentplanning`. Alias tanpa tanda hubung (`/konten`, `/cp`) bisa masuk menu perintah Telegram, yang hanya menerima huruf kecil, angka, dan garis bawah. Pesan biasa tanpa garis miring ("buat content plan seminggu") juga dilayani.
+
+### Approval reviewer
+Reviewer meloloskan konten hanya kalau tiga hal ini terpenuhi (detail di `skills/content-planning/references/checker-rubric.md`):
+
+| Gerbang | Lolos kalau | Gagal |
+|---|---|---|
+| Skor konten | ≥ 80 dan fakta sesuai brief | revisi |
+| SEO, GEO, AEO (`skor_seo`) | ≥ 80 | revisi |
+| Anti AI slop (`slop_check.py`) | `skor_slop` ≤ 20, dan `skor_ai` < 50 kalau detektor aktif | tulis ulang dari nol |
+
+Hasil pemeriksaan tiap putaran dikirim ke topik Content Reviewer (thread kedua di `install_skills.sh`). Laporan akhir dan CSV tetap ke topik Content Planning.
+
+`slop_check.py` menghitung pola tulisan mesin secara lokal (frasa klise, pola "bukan X, melainkan Y", ritme kalimat seragam, dan sejenisnya). Untuk menambah skor dari situs detektor AI, isi di `~/hermes-data/content-plan/config.env`:
+
+```
+AI_DETECTOR=sapling        # atau gptzero
+AI_DETECTOR_KEY=<api key>
+```
+
+Rubrik memeriksa faktor yang bisa dikendalikan dari sisi konten. Terindeks, ranking, traffic, dan leads baru bisa dibuktikan di Search Console setelah konten tayang.
 
 ## Tim (virtual office)
 

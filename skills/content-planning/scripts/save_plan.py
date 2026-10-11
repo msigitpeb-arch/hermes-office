@@ -7,12 +7,14 @@ Hanya pakai standard library.
     save_plan.py status CP-1,CP-2 "Approved" [--note "..."] [--send]
     save_plan.py show [--status "Menunggu review SML"]
     save_plan.py send                             kirim file CSV ke Telegram
-    save_plan.py ping                             kirim pesan tes ke topik review (cek thread ID)
+    save_plan.py ping                             kirim pesan tes ke topik review dan topik reviewer
     save_plan.py notify "teks" | @file.txt       kirim laporan/eskalasi ke topik review
+    save_plan.py notify --to reviewer @file.txt   kirim hasil pemeriksaan ke topik reviewer
 
 Konfigurasi: ~/hermes-data/content-plan/config.env
     REVIEW_CHAT_ID=-100...
-    REVIEW_THREAD_ID=5
+    REVIEW_THREAD_ID=5          topik Content Planning (laporan akhir + CSV untuk SML)
+    REVIEWER_THREAD_ID=9        topik Content Reviewer (hasil pemeriksaan tiap putaran), opsional
 Token bot diambil dari TELEGRAM_BOT_TOKEN di ~/.hermes/.env (atau environment).
 """
 import argparse
@@ -31,8 +33,9 @@ CONFIG_PATH = DATA_DIR / "config.env"
 
 FIELDS = [
     "id", "tanggal_tayang", "platform", "format", "pilar", "funnel", "judul_hook",
-    "pesan_utama", "outline", "cta", "keyword", "sumber_klaim", "naskah", "skor_checker",
-    "catatan_checker", "revisi_ke", "status", "catatan_sml", "diperbarui",
+    "pesan_utama", "outline", "cta", "keyword", "negara_bahasa", "search_intent", "meta_title",
+    "meta_description", "slug", "faq", "sumber_klaim", "naskah", "skor_checker", "skor_seo",
+    "skor_slop", "skor_ai", "catatan_checker", "revisi_ke", "status", "catatan_sml", "diperbarui",
 ]
 
 
@@ -160,9 +163,11 @@ def tg_config():
     return {**read_env(Path.home() / ".hermes" / ".env"), **read_env(CONFIG_PATH), **os.environ}
 
 
-def send_text(text):
+def send_text(text, to="review"):
     cfg = tg_config()
     token, chat, thread = cfg.get("TELEGRAM_BOT_TOKEN"), cfg.get("REVIEW_CHAT_ID"), cfg.get("REVIEW_THREAD_ID")
+    if to == "reviewer":  # tanpa topik reviewer, hasil pemeriksaan ikut ke topik review
+        thread = cfg.get("REVIEWER_THREAD_ID") or thread
     if not token or not chat:
         print("WARN TELEGRAM_BOT_TOKEN atau REVIEW_CHAT_ID belum diset")
         return False
@@ -185,8 +190,10 @@ def send_text(text):
 
 
 def send_ping():
-    thread = tg_config().get("REVIEW_THREAD_ID")
-    send_text(f"Tes: file review Content Planning akan dikirim ke topik ini (thread {thread or '-'}).")
+    cfg = tg_config()
+    send_text(f"Tes: file review Content Planning akan dikirim ke topik ini (thread {cfg.get('REVIEW_THREAD_ID') or '-'}).")
+    if cfg.get("REVIEWER_THREAD_ID"):
+        send_text(f"Tes: hasil pemeriksaan reviewer akan dikirim ke topik ini (thread {cfg['REVIEWER_THREAD_ID']}).", to="reviewer")
 
 
 def caption_ringkas():
@@ -207,13 +214,14 @@ def main():
     sub.add_parser("send")
     sub.add_parser("ping")
     n = sub.add_parser("notify"); n.add_argument("text", help="teks pesan, atau @path/file.txt")
+    n.add_argument("--to", choices=["review", "reviewer"], default="review")
     args = p.parse_args()
 
     if args.cmd == "notify":
         t = args.text
         if t.startswith("@"):
             t = Path(t[1:]).expanduser().read_text(encoding="utf-8")
-        send_text(t)
+        send_text(t, args.to)
         return
 
     if args.cmd == "add":
