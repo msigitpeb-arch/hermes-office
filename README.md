@@ -57,6 +57,22 @@ AI_DETECTOR_KEY=<api key>
 
 Rubrik memeriksa faktor yang bisa dikendalikan dari sisi konten. Terindeks, ranking, traffic, dan leads baru bisa dibuktikan di Search Console setelah konten tayang.
 
+### Rekam ke Google Sheets
+Setiap kali reviewer menyimpan konten atau status berubah (`approve`, `revisi`, `tolak`), `save_plan.py` ikut memperbarui Google Sheets. Baris dicocokkan lewat `id`: yang sudah ada ditimpa, yang baru ditambahkan, tidak ada yang dihapus. CSV tetap menjadi sumber utama; kalau kiriman ke Sheets gagal, penyimpanan CSV tidak batal.
+
+Pasang sekali:
+
+1. Buka spreadsheet tujuan → Extensions → Apps Script. Tempel isi `skills/content-planning/references/google-sheet-webhook.gs`, lalu ganti `TOKEN` dengan teks acak yang panjang.
+2. Deploy → New deployment → Web app. Execute as: **Me**. Who has access: **Anyone**. Salin URL yang berakhiran `/exec`.
+3. Di VPS, tambahkan ke `~/hermes-data/content-plan/config.env`:
+   ```
+   SHEET_WEBHOOK_URL=https://script.google.com/macros/s/.../exec
+   SHEET_TOKEN=<token yang sama>
+   ```
+4. Kirim semua baris yang sudah ada: `python3 ~/.hermes/skills/marketing/content-planning/scripts/save_plan.py sheet`
+
+Data masuk ke tab "Content Plan". URL web app bisa dipanggil siapa saja, jadi `TOKEN` adalah satu-satunya pengaman: jangan ditaruh di repo atau di screenshot. Setiap kali isi Apps Script diubah, buat deployment versi baru supaya perubahan berlaku.
+
 ## Tim (virtual office)
 
 `setup_team.sh` membuat tim berbasis profile Hermes + Kanban:

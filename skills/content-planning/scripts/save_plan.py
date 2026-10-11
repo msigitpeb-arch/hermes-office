@@ -9,6 +9,7 @@ Hanya pakai standard library.
     save_plan.py send                             kirim file CSV ke Telegram
     save_plan.py detail CP-1,CP-2                 tampilkan isi konten (skor, catatan, naskah) di topik reviewer
     save_plan.py detail --status "Menunggu review SML"
+    save_plan.py sheet                            kirim ulang semua baris ke Google Sheets
     save_plan.py ping                             kirim pesan tes ke topik review dan topik reviewer
     save_plan.py notify "teks" | @file.txt       kirim laporan/eskalasi ke topik review
     save_plan.py notify --to reviewer @file.txt   kirim hasil pemeriksaan ke topik reviewer
@@ -17,6 +18,9 @@ Konfigurasi: ~/hermes-data/content-plan/config.env
     REVIEW_CHAT_ID=-100...
     REVIEW_THREAD_ID=5          topik Content Planning (laporan akhir + CSV untuk SML)
     REVIEWER_THREAD_ID=9        topik Content Reviewer (hasil pemeriksaan tiap putaran), opsional
+    SHEET_WEBHOOK_URL=https://script.google.com/macros/s/.../exec   opsional, lihat references/google-sheet-webhook.gs
+    SHEET_TOKEN=...             sama dengan TOKEN di Apps Script
+Kalau SHEET_WEBHOOK_URL diisi, setiap `add` dan `status` ikut memperbarui Google Sheets.
 Token bot diambil dari TELEGRAM_BOT_TOKEN di ~/.hermes/.env (atau environment).
 """
 import argparse
@@ -70,6 +74,29 @@ def save_rows(rows):
         for r in rows:
             w.writerow({k: r.get(k, "") for k in FIELDS})
     tmp.replace(CSV_PATH)
+
+
+def sync_sheet():
+    """Cerminkan seluruh CSV ke Google Sheets. Gagal kirim tidak membatalkan penyimpanan CSV."""
+    cfg = tg_config()
+    url, token = cfg.get("SHEET_WEBHOOK_URL"), cfg.get("SHEET_TOKEN")
+    if not url:
+        return
+    rows = [{k: r.get(k, "") for k in FIELDS} for r in load_rows()]
+    req = urllib.request.Request(
+        url,
+        data=json.dumps({"token": token, "fields": FIELDS, "rows": rows}).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            hasil = json.loads(resp.read())
+        if hasil.get("ok"):
+            print(f"OK Google Sheets diperbarui (baru: {hasil.get('baru')}, diperbarui: {hasil.get('diperbarui')})")
+        else:
+            print(f"WARN Google Sheets menolak: {hasil.get('error')}")
+    except Exception as e:
+        print(f"WARN gagal kirim ke Google Sheets: {e}")
 
 
 def now():
@@ -274,6 +301,7 @@ def main():
     s.add_argument("--note"); s.add_argument("--send", action="store_true")
     sh = sub.add_parser("show"); sh.add_argument("--status")
     sub.add_parser("send")
+    sub.add_parser("sheet")
     d = sub.add_parser("detail"); d.add_argument("ids", nargs="?"); d.add_argument("--status")
     sub.add_parser("ping")
     n = sub.add_parser("notify"); n.add_argument("text", help="teks pesan, atau @path/file.txt")
@@ -298,6 +326,10 @@ def main():
         ids_baru = cmd_add(args.json_file, args.force)
     elif args.cmd == "status":
         cmd_status(args.ids, args.status, args.note)
+    if args.cmd in ("add", "status", "sheet"):
+        if args.cmd == "sheet" and not tg_config().get("SHEET_WEBHOOK_URL"):
+            sys.exit("ERROR SHEET_WEBHOOK_URL belum diisi di config.env")
+        sync_sheet()
     elif args.cmd == "show":
         cmd_show(args.status)
     if args.cmd == "ping":
