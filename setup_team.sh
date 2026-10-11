@@ -56,7 +56,7 @@ hermes tools enable kanban >/dev/null 2>&1 || true
 echo "== 4/5 Kanban + satu gateway untuk semua profile"
 hermes kanban init >/dev/null 2>&1 || true
 hermes config set gateway.multiplex_profiles true >/dev/null
-hermes gateway restart >/dev/null 2>&1 || systemctl --user restart hermes-gateway
+echo "Restart Hermes (maks 60 detik)..."; timeout 60 hermes gateway restart >/dev/null 2>&1 || systemctl --user restart hermes-gateway
 
 echo "== 5/5 Cek"
 sleep 5

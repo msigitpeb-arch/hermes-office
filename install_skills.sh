@@ -39,7 +39,7 @@ else
 fi
 echo "[3/3] Grup diizinkan: $(grep '^TELEGRAM_GROUP_ALLOWED_CHATS=' ~/.hermes/.env)"
 
-hermes gateway restart >/dev/null 2>&1 || systemctl --user restart hermes-gateway
+echo "Restart Hermes (maks 60 detik)..."; timeout 60 hermes gateway restart >/dev/null 2>&1 || systemctl --user restart hermes-gateway
 echo
 python3 ~/.hermes/skills/marketing/content-planning/scripts/save_plan.py ping
 echo "Pastikan pesan tes muncul di topik Content Planning. Kalau muncul di topik lain, jalankan ulang dengan thread ID yang benar."
