@@ -46,7 +46,7 @@ Reviewer meloloskan konten hanya kalau tiga hal ini terpenuhi (detail di `skills
 | SEO, GEO, AEO (`skor_seo`) | ≥ 80 | revisi |
 | Anti AI slop (`slop_check.py`) | `skor_slop` ≤ 20, dan `skor_ai` < 50 kalau detektor aktif | tulis ulang dari nol |
 
-Hasil pemeriksaan tiap putaran dikirim ke topik Content Reviewer (thread kedua di `install_skills.sh`). Laporan akhir dan CSV tetap ke topik Content Planning.
+Hasil pemeriksaan tiap putaran dan ringkasan tiap konten dikirim ke topik Content Reviewer (thread kedua di `install_skills.sh`). Laporan akhir dan CSV dikirim ke thread pertama. Di VPS SML keduanya diarahkan ke topik 03.1 dengan `bash install_skills.sh 59 59`, sehingga topik 03 hanya dipakai untuk memberi perintah.
 
 `slop_check.py` menghitung pola tulisan mesin secara lokal (frasa klise, pola "bukan X, melainkan Y", ritme kalimat seragam, dan sejenisnya). Untuk menambah skor dari situs detektor AI, isi di `~/hermes-data/content-plan/config.env`:
 

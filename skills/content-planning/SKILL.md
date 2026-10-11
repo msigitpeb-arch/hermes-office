@@ -37,7 +37,7 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
 1. Buat kartu untuk planner. Pakai tool `kanban_create` kalau tersedia:
    `kanban_create(title="Content plan PeopleSync: <ringkas permintaan>", assignee="content-planner", body="<permintaan SML lengkap: periode, jumlah konten, platform, catatan khusus>. Pakai skill content-planning, peran CONTENT-PLANNER.")`
    Kalau tool tidak ada: `hermes kanban create "Content plan PeopleSync: <ringkas>" --assignee content-planner`, lalu `hermes kanban comment <id> "<isi body>"`.
-2. Balas SML satu kali: kartu sudah dibuat, tim bekerja, hasil akan dikirim ke topik ini. Jangan memantau atau melapor progres.
+2. Balas SML satu kali: kartu sudah dibuat, tim bekerja, dan hasilnya (laporan tiap putaran, ringkasan konten, file CSV) akan muncul di topik Content Reviewer (03.1), bukan di topik tempat permintaan dikirim. Jangan memantau atau melapor progres.
 3. Untuk review SML (approve / revisi / tolak), ikuti langkah 6. Revisi dikirim sebagai kartu baru ke `content-writer` dengan ID baris dan catatan SML di body, lalu tetap lewat reviewer.
 
 **Kalau kamu CONTENT-PLANNER (strategi, worker Kanban):**
@@ -73,13 +73,13 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
    <ID> · APPROVE · skor <n> · SEO <n> · slop <n> · AI <n atau n/a>
    <ID> · REVISI · skor <n> · SEO <n> · slop <n> · AI <n atau n/a> · <alasan satu kalimat>
    <ID> · TULIS ULANG · slop <n> · AI <n atau n/a> · <temuan utama>
-   Hasil: <a> approve, <b> revisi, <c> tulis ulang. <Dikembalikan ke writer. | Disimpan dan dikirim ke topik Content Planning.>
+   Hasil: <a> approve, <b> revisi, <c> tulis ulang. <Dikembalikan ke writer. | Disimpan ke CSV, ringkasan menyusul di topik ini.>
    ```
 4. Ada baris yang belum layak approve → `kanban_request_changes` berisi koreksi per ID dalam format JSON rubrik. Kartu kembali ke writer. Ulangi sampai semua baris approve.
 5. **Batas aman: putaran ke-6.** Kalau di putaran ke-6 masih ada baris yang gagal, jangan kirim balik lagi. Simpan baris yang sudah approve (langkah 6), lalu `kanban_block` dengan alasan, dan kirim eskalasi ke SML:
    `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py notify "Eskalasi content plan <run>: <n> konten belum lolos setelah 6 putaran. ID: <...>. Masalah utama: <ringkas>. Balas dengan arahan, atau minta lead membuat ulang."`
 6. Semua baris approve → isi `skor_checker`, `skor_seo`, `skor_slop`, `skor_ai`, `catatan_checker`, `revisi_ke` (jumlah putaran), `status` = "Menunggu review SML", `catatan_sml` = "". Simpan dengan langkah 4 Procedure (save_plan.py add ... --send). Dengan `--send`, script juga menampilkan ringkasan tiap konten yang disimpan (skor, hook, pesan utama, keyword, CTA, catatan) sebagai pesan di topik Content Reviewer. Naskah lengkap hanya ada di CSV dan Google Sheets, jadi jangan menyalinnya ke chat.
-7. Kirim laporan langkah 5 Procedure ke topik Content Planning dengan menulisnya ke file lalu `save_plan.py notify @<file>`. Setelah itu `kanban_complete`.
+7. Kirim laporan langkah 5 Procedure dengan menulisnya ke file lalu `save_plan.py notify @<file>`. Tujuannya topik review di `config.env`, yang di setup ini sama dengan topik Content Reviewer (03.1). Setelah itu `kanban_complete`.
 
 Kalau SML bertanya langsung di topik Content Reviewer ("sudah approve belum?", "status CP-xxx?"), jawab dari data, bukan ingatan: `save_plan.py show` untuk yang sudah disimpan dan `hermes kanban list` untuk yang masih dikerjakan.
 
