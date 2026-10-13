@@ -101,3 +101,28 @@ bash ~/hermes-office/ruang_patch_timeout.sh     # wajib di VPS 2 vCPU, ulangi se
 ```
 
 Buka lewat tunnel: `ssh -L 3001:127.0.0.1:3001 ubuntu@IP_VPS`, lalu http://127.0.0.1:3001. Tutup tab Ruang kalau tidak dipakai, karena polling-nya ikut memakan CPU agent.
+
+## Brain (second brain)
+
+Arsip pengetahuan jangka panjang: catatan, tautan, hasil riset, dan fakta produk disimpan sebagai Markdown lalu dicari kembali lewat Telegram. Ringan: SQLite FTS5 dan satu script Python, tanpa Docker, tanpa model embedding, tanpa layanan yang terus hidup.
+
+```bash
+cd ~/hermes-office && git pull && bash install_brain.sh
+```
+
+Pakai di Telegram: `/simpan <isi atau tautan>`, `/cari <pertanyaan>`, atau cukup "simpan ini" dan "apa yang gw tau soal X".
+
+| Lokasi | Isi |
+|---|---|
+| `~/hermes-data/brain/knowledge/<kategori>/` | Catatan Markdown dengan frontmatter (bisa dibuka di Obsidian) |
+| `~/hermes-data/brain/brain.db` | Indeks pencarian; bisa dibangun ulang dari file |
+
+Kategori: `produk` (fakta PeopleSync terkonfirmasi), `riset`, `artikel`, `ide`, `notes`.
+
+Mengindeks folder Markdown yang sudah ada, misalnya salinan vault Obsidian (file tidak disalin, jalankan lagi setelah folder berubah):
+
+```bash
+python3 ~/.hermes/skills/productivity/brain/scripts/brain.py ingest ~/vault --category vault
+```
+
+Batasan versi ini: pencarian berbasis kata, bukan makna, jadi pertanyaan harus memuat kata yang ada di catatan (atau sinonim yang dicoba agen). Belum membaca PDF dan gambar secara langsung; agen menyimpan teksnya setelah membacanya dengan tool lain. Catatan yang tampak memuat API key, token, atau password ditolak.
