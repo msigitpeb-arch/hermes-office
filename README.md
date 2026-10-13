@@ -125,4 +125,6 @@ Mengindeks folder Markdown yang sudah ada, misalnya salinan vault Obsidian (file
 python3 ~/.hermes/skills/productivity/brain/scripts/brain.py ingest ~/vault --category vault
 ```
 
-Batasan versi ini: pencarian berbasis kata, bukan makna, jadi pertanyaan harus memuat kata yang ada di catatan (atau sinonim yang dicoba agen). Belum membaca PDF dan gambar secara langsung; agen menyimpan teksnya setelah membacanya dengan tool lain. Catatan yang tampak memuat API key, token, atau password ditolak.
+Menyimpan file beserta isinya (.pdf, .docx, .md, .txt, .csv): `brain.py add-file <file> --title "..."`. File asli disalin ke `~/hermes-data/brain/files/`, teksnya diindeks per bagian (heading atau halaman), sehingga hasil pencarian menyebut dokumen dan bagiannya. PDF butuh `sudo apt install -y poppler-utils`.
+
+Batasan versi ini: pencarian berbasis kata, bukan makna, jadi agen memperluas pertanyaan dengan sinonim sebelum mencari. PDF hasil pindai (tanpa teks), .xlsx, .pptx, dan gambar belum didukung. Catatan yang tampak memuat API key, token, atau password ditolak.

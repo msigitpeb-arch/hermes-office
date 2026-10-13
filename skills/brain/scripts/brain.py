@@ -5,6 +5,8 @@ Hanya pakai standard library, tanpa layanan yang terus hidup.
 
     brain.py add --title "..." [--tags a,b] [--source URL] [--category notes] "isi"
                                    isi bisa teks, @path/file, atau - untuk stdin
+    brain.py add-file <file> [--title "..."] [--tags a,b] [--category dokumen]
+                                   simpan file asli (.pdf .docx .md .txt .csv) dan indeks isinya
     brain.py ingest <folder|file> [--category ref]   indeks file .md/.txt yang sudah ada (tidak disalin)
     brain.py search "pertanyaan" [--limit 5] [--category x] [--json]
     brain.py show <doc_id>
@@ -12,7 +14,9 @@ Hanya pakai standard library, tanpa layanan yang terus hidup.
     brain.py forget <doc_id>       hapus dari indeks; catatan buatan `add` ikut dihapus dari disk
     brain.py status
 
-Data: ~/hermes-data/brain/   knowledge/<kategori>/*.md (bisa dibuka di Obsidian) dan brain.db (indeks).
+Data: ~/hermes-data/brain/   knowledge/<kategori>/*.md (bisa dibuka di Obsidian), files/ (file asli),
+dan brain.db (indeks).
+PDF dibaca lewat `pdftotext` (sudo apt install poppler-utils), atau PyMuPDF/pypdf kalau terpasang.
 Indeks bisa dibangun ulang kapan saja dari file; file Markdown adalah sumber utamanya.
 """
 import argparse
@@ -21,12 +25,17 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import sqlite3
+import subprocess
 import sys
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 ROOT = Path(os.environ.get("BRAIN_ROOT", Path.home() / "hermes-data" / "brain"))
 KNOWLEDGE = ROOT / "knowledge"
+FILES = ROOT / "files"
 DB_PATH = ROOT / "brain.db"
 
 CHUNK_CHARS = 1200
@@ -57,9 +66,10 @@ def db():
         CREATE TABLE IF NOT EXISTS docs (
             id INTEGER PRIMARY KEY, path TEXT UNIQUE NOT NULL, title TEXT NOT NULL, tags TEXT DEFAULT '',
             source TEXT DEFAULT '', category TEXT DEFAULT '', sha TEXT NOT NULL, managed INTEGER DEFAULT 0,
-            created TEXT NOT NULL, updated TEXT NOT NULL);
+            created TEXT NOT NULL, updated TEXT NOT NULL, file TEXT DEFAULT '');
         CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5(
-            doc_id UNINDEXED, ord UNINDEXED, title, body, tokenize='unicode61 remove_diacritics 2');
+            doc_id UNINDEXED, ord UNINDEXED, section UNINDEXED, title, body,
+            tokenize='unicode61 remove_diacritics 2');
     """)
     return c
 
@@ -88,25 +98,34 @@ def baca_frontmatter(text):
 
 
 def potong(isi):
-    """Pecah per paragraf, bawa heading terakhir sebagai konteks, gabung sampai sekitar CHUNK_CHARS."""
-    hasil, buf, heading = [], "", ""
+    """Pecah per paragraf sampai sekitar CHUNK_CHARS. Kembalikan daftar (bagian, isi); bagian = heading terakhir."""
+    hasil, buf, heading, bagian_buf = [], "", "", ""
+
+    def simpan():
+        nonlocal buf
+        if buf.strip():
+            hasil.append((bagian_buf, buf.strip()))
+        buf = ""
+
     for blok in re.split(r"\n\s*\n", isi):
         blok = blok.strip()
         if not blok:
             continue
         m = re.match(r"#{1,6}\s+(.*)", blok)
-        if m:
+        if m:  # heading baru memulai potongan baru, supaya tiap potongan punya satu letak yang jelas
+            simpan()
             heading = m.group(1).strip()
         if buf and len(buf) + len(blok) > CHUNK_CHARS:
-            hasil.append(buf)
-            buf = f"[{heading}]\n" if heading and not m else ""
+            simpan()
+        if not buf:
+            bagian_buf = heading
         while len(blok) > CHUNK_CHARS * 2:  # paragraf raksasa tanpa jeda
-            hasil.append((buf + blok[:CHUNK_CHARS]).strip())
-            blok, buf = blok[CHUNK_CHARS:], ""
+            buf += blok[:CHUNK_CHARS]
+            simpan()
+            blok, bagian_buf = blok[CHUNK_CHARS:], heading
         buf += blok + "\n\n"
-    if buf.strip():
-        hasil.append(buf)
-    return [h.strip() for h in hasil if h.strip()]
+    simpan()
+    return hasil
 
 
 def indeks(c, path, text, category, managed, meta_override=None):
@@ -119,17 +138,19 @@ def indeks(c, path, text, category, managed, meta_override=None):
     lama = c.execute("SELECT id, sha FROM docs WHERE path = ?", (str(path),)).fetchone()
     if lama and lama["sha"] == sha:
         return lama["id"], "sama"
-    kolom = (judul, meta.get("tags", ""), meta.get("source", ""), category, sha, now())
+    kolom = (judul, meta.get("tags", ""), meta.get("source", ""), category, sha, now(), meta.get("file", ""))
     if lama:
         doc_id = lama["id"]
-        c.execute("UPDATE docs SET title=?, tags=?, source=?, category=?, sha=?, updated=? WHERE id=?", (*kolom, doc_id))
+        c.execute("UPDATE docs SET title=?, tags=?, source=?, category=?, sha=?, updated=?, file=? WHERE id=?",
+                  (*kolom, doc_id))
         c.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
     else:
         doc_id = c.execute(
-            "INSERT INTO docs (title, tags, source, category, sha, updated, path, managed, created) VALUES (?,?,?,?,?,?,?,?,?)",
-            (*kolom, str(path), int(managed), now())).lastrowid
-    c.executemany("INSERT INTO chunks (doc_id, ord, title, body) VALUES (?,?,?,?)",
-                  [(doc_id, i, f"{judul} {meta.get('tags', '')}", ch) for i, ch in enumerate(potong(isi))])
+            "INSERT INTO docs (title, tags, source, category, sha, updated, file, path, managed, created) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)", (*kolom, str(path), int(managed), now())).lastrowid
+    c.executemany("INSERT INTO chunks (doc_id, ord, section, title, body) VALUES (?,?,?,?,?)",
+                  [(doc_id, i, bagian, f"{judul} {meta.get('tags', '')}", ch)
+                   for i, (bagian, ch) in enumerate(potong(isi))])
     return doc_id, "diperbarui" if lama else "baru"
 
 
@@ -162,6 +183,97 @@ def cmd_add(args):
                        meta_override={"title": args.title, "tags": tags, "source": args.source or ""})
     c.commit()
     print(f"OK tersimpan #{doc_id}: {path}")
+
+
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def teks_docx(path):
+    """Ambil teks .docx tanpa library: paragraf, heading (jadi #), dan tabel (sel dipisah ' | ')."""
+    with zipfile.ZipFile(path) as z:
+        root = ElementTree.fromstring(z.read("word/document.xml"))
+
+    def paragraf(p):
+        teks = "".join(t.text or "" for t in p.iter(W + "t")).strip()
+        gaya = p.find(f"{W}pPr/{W}pStyle")
+        m = re.match(r"(?i)(?:heading|judul)\s*(\d)", gaya.get(W + "val", "") if gaya is not None else "")
+        return f"{'#' * min(int(m.group(1)), 6)} {teks}" if m and teks else teks
+
+    keluar = []
+    for el in root.find(W + "body"):
+        if el.tag == W + "p":
+            keluar.append(paragraf(el))
+        elif el.tag == W + "tbl":
+            for baris in el.iter(W + "tr"):
+                sel = [" ".join(paragraf(p) for p in tc.iter(W + "p")).strip() for tc in baris.iter(W + "tc")]
+                keluar.append(" | ".join(sel))
+    return "\n\n".join(k for k in keluar if k)
+
+
+def teks_pdf(path):
+    """Teks PDF per halaman, tiap halaman diberi heading '## Halaman N' supaya letaknya bisa disebut."""
+    halaman = None
+    if shutil.which("pdftotext"):
+        r = subprocess.run(["pdftotext", "-layout", str(path), "-"], capture_output=True)
+        if r.returncode == 0:
+            halaman = r.stdout.decode("utf-8", "replace").split("\f")
+    if halaman is None:
+        try:
+            import fitz  # PyMuPDF
+            with fitz.open(str(path)) as doc:
+                halaman = [h.get_text() for h in doc]
+        except ImportError:
+            try:
+                from pypdf import PdfReader
+                halaman = [h.extract_text() or "" for h in PdfReader(str(path)).pages]
+            except ImportError:
+                sys.exit("ERROR belum ada pembaca PDF. Pasang salah satu: sudo apt install -y poppler-utils")
+    isi = [f"## Halaman {i}\n\n{h.strip()}" for i, h in enumerate(halaman, 1) if h.strip()]
+    if not isi:
+        sys.exit("ERROR PDF ini tidak punya teks (kemungkinan hasil pindai). Perlu OCR dulu sebelum bisa dicari.")
+    return "\n\n".join(isi)
+
+
+def cmd_add_file(args):
+    src = Path(args.path).expanduser()
+    if not src.is_file():
+        sys.exit(f"ERROR file tidak ada: {src}")
+    ext = src.suffix.lower()
+    if ext == ".docx":
+        teks = teks_docx(src)
+    elif ext == ".pdf":
+        teks = teks_pdf(src)
+    elif ext in (".md", ".markdown", ".txt", ".csv"):
+        teks = baca_frontmatter(src.read_text(encoding="utf-8", errors="replace"))[1]
+    else:
+        sys.exit(f"ERROR jenis file {ext or '(tanpa ekstensi)'} belum didukung. Yang bisa: .pdf .docx .md .txt .csv")
+    if not teks.strip():
+        sys.exit("ERROR tidak ada teks yang bisa diambil dari file ini")
+    if RAHASIA.search(teks) and not args.force:
+        sys.exit("ERROR isi file tampak memuat API key, token, atau password. Pakai --force kalau ini memang bukan rahasia.")
+
+    judul = args.title or src.stem.replace("_", " ").replace("-", " ").strip()
+    kategori = slug(args.category)
+    sha_file = hashlib.sha256(src.read_bytes()).hexdigest()
+    (FILES / kategori).mkdir(parents=True, exist_ok=True)
+    asli = FILES / kategori / f"{slug(judul)}-{sha_file[:8]}{ext}"
+    c = db()
+    lama = c.execute("SELECT id, title FROM docs WHERE file = ?", (str(asli),)).fetchone()
+    if lama:  # file yang sama persis sudah pernah disimpan
+        print(f"OK sudah ada sebagai #{lama['id']} '{lama['title']}': {asli}")
+        return
+    shutil.copy2(src, asli)
+    tags = ", ".join(t.strip() for t in (args.tags or "").split(",") if t.strip())
+    (KNOWLEDGE / kategori).mkdir(parents=True, exist_ok=True)
+    catatan = KNOWLEDGE / kategori / f"{slug(judul)}-{sha_file[:8]}.md"
+    isi_file = ("---\n" + f'title: "{judul}"\ndate: {datetime.date.today():%Y-%m-%d}\ntags: [{tags}]\n'
+                f"file: {asli}\n---\n\n" + teks.strip() + "\n")
+    catatan.write_text(isi_file, encoding="utf-8")
+    doc_id, _ = indeks(c, catatan, isi_file, kategori, managed=True,
+                       meta_override={"title": judul, "tags": tags, "file": str(asli)})
+    c.commit()
+    n = c.execute("SELECT COUNT(*) FROM chunks WHERE doc_id = ?", (doc_id,)).fetchone()[0]
+    print(f"OK tersimpan #{doc_id} '{judul}': {len(teks.split())} kata, {n} potongan. File asli: {asli}")
 
 
 def cmd_ingest(args):
@@ -210,20 +322,20 @@ def cmd_search(args):
     c = db()
     rows = []
     if q:
-        sql = """SELECT d.id, d.title, d.path, d.source, d.tags, d.category, d.updated, chunks.body,
-                        bm25(chunks, 0.0, 0.0, 3.0, 1.0) AS skor
+        sql = """SELECT d.id, d.title, d.path, d.source, d.tags, d.category, d.updated, d.file,
+                        chunks.body, chunks.section, bm25(chunks, 0.0, 0.0, 0.0, 3.0, 1.0) AS skor
                  FROM chunks JOIN docs d ON d.id = chunks.doc_id
                  WHERE chunks MATCH ? {filter} ORDER BY skor LIMIT ?"""
         params = [q] + ([args.category] if args.category else []) + [args.limit * 4]
         rows = c.execute(sql.format(filter="AND d.category = ?" if args.category else ""), params).fetchall()
     hasil, per_doc = [], {}
-    for r in rows:  # paling banyak dua potongan per dokumen supaya hasil tidak dikuasai satu catatan
-        if per_doc.get(r["id"], 0) >= 2:
+    for r in rows:  # batasi potongan per dokumen supaya hasil tidak dikuasai satu dokumen
+        if per_doc.get(r["id"], 0) >= args.per_doc:
             continue
         per_doc[r["id"]] = per_doc.get(r["id"], 0) + 1
-        hasil.append({"doc_id": r["id"], "judul": r["title"], "kategori": r["category"], "tags": r["tags"],
-                      "sumber": r["source"], "path": r["path"], "diperbarui": r["updated"],
-                      "skor": round(-r["skor"], 2), "kutipan": r["body"][:900]})
+        hasil.append({"doc_id": r["id"], "judul": r["title"], "bagian": r["section"], "kategori": r["category"],
+                      "tags": r["tags"], "sumber": r["source"], "file_asli": r["file"], "path": r["path"],
+                      "diperbarui": r["updated"], "skor": round(-r["skor"], 2), "kutipan": r["body"][:900]})
         if len(hasil) >= args.limit:
             break
     if args.json:
@@ -233,8 +345,9 @@ def cmd_search(args):
         print("Tidak ada catatan yang cocok.")
         return
     for h in hasil:
-        print(f"#{h['doc_id']} {h['judul']}  [{h['kategori']}] skor {h['skor']}")
-        print(f"   {h['path']}" + (f"  | sumber: {h['sumber']}" if h["sumber"] else ""))
+        print(f"#{h['doc_id']} {h['judul']}" + (f" > {h['bagian']}" if h["bagian"] else "")
+              + f"  [{h['kategori']}] skor {h['skor']}")
+        print(f"   {h['file_asli'] or h['path']}" + (f"  | sumber: {h['sumber']}" if h["sumber"] else ""))
         print("   " + h["kutipan"][:300].replace("\n", " ") + "\n")
 
 
@@ -267,9 +380,11 @@ def cmd_forget(args):
     c.execute("DELETE FROM docs WHERE id = ?", (r["id"],))
     c.commit()
     catatan = ""
-    if r["managed"] and Path(r["path"]).exists():  # file hasil ingest milik user, tidak pernah disentuh
-        Path(r["path"]).unlink()
-        catatan = " dan filenya dihapus"
+    if r["managed"]:  # file hasil ingest milik user, tidak pernah disentuh
+        for f in (r["path"], r["file"]):
+            if f and Path(f).exists():
+                Path(f).unlink()
+                catatan = " dan filenya dihapus"
     print(f"OK #{r['id']} '{r['title']}' dihapus dari indeks{catatan}")
 
 
@@ -289,15 +404,18 @@ def main():
     a = sub.add_parser("add"); a.add_argument("text"); a.add_argument("--title", required=True)
     a.add_argument("--tags"); a.add_argument("--source"); a.add_argument("--category", default="notes")
     a.add_argument("--force", action="store_true")
+    af = sub.add_parser("add-file"); af.add_argument("path"); af.add_argument("--title"); af.add_argument("--tags")
+    af.add_argument("--category", default="dokumen"); af.add_argument("--force", action="store_true")
     i = sub.add_parser("ingest"); i.add_argument("path"); i.add_argument("--category", default="ref")
     s = sub.add_parser("search"); s.add_argument("query"); s.add_argument("--limit", type=int, default=5)
     s.add_argument("--category"); s.add_argument("--json", action="store_true")
+    s.add_argument("--per-doc", type=int, default=3, help="potongan paling banyak per dokumen")
     sh = sub.add_parser("show"); sh.add_argument("doc_id", type=int)
     ls = sub.add_parser("list"); ls.add_argument("--limit", type=int, default=20); ls.add_argument("--category")
     f = sub.add_parser("forget"); f.add_argument("doc_id", type=int)
     sub.add_parser("status")
     args = p.parse_args()
-    {"add": cmd_add, "ingest": cmd_ingest, "search": cmd_search, "show": cmd_show,
+    {"add": cmd_add, "add-file": cmd_add_file, "ingest": cmd_ingest, "search": cmd_search, "show": cmd_show,
      "list": cmd_list, "forget": cmd_forget, "status": cmd_status}[args.cmd](args)
 
 

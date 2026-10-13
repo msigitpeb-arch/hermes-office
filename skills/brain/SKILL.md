@@ -43,17 +43,43 @@ Aturan isi:
 - Jangan menyimpan API key, token, password, atau data pribadi sensitif. Script menolak pola yang jelas; kamu tetap wajib membuangnya sebelum menyimpan. Jangan memakai `--force` kecuali SML sendiri yang memintanya.
 - Kategori `produk` hanya untuk fakta yang SML nyatakan benar atau yang tertulis di peoplesync.id. Dugaanmu tentang produk masuk `ide`, bukan `produk`.
 
+## Menyimpan file (SOP, kebijakan, kontrak, laporan)
+
+SML mengirim file (.pdf, .docx, .md, .txt, .csv) atau menyebut path file di server:
+
+```
+python3 ${HERMES_SKILL_DIR}/scripts/brain.py add-file "<path file>" --title "<judul>" --tags "<a, b>" --category dokumen
+```
+
+- Pakai path lokal file yang diberikan gateway untuk lampiran Telegram. Kalau kamu tidak punya path-nya, katakan begitu; jangan mengetik ulang isi file dari ingatan.
+- Script menyimpan file aslinya, mengambil teksnya, dan mengindeks per bagian (heading untuk Word dan Markdown, halaman untuk PDF).
+- Laporkan keluaran script apa adanya, termasuk jumlah kata. Jumlah kata yang sangat kecil untuk dokumen panjang berarti teksnya tidak terbaca.
+- PDF hasil pindai tidak punya teks dan akan ditolak script. Sampaikan ke SML bahwa file itu perlu versi teks atau OCR.
+- Jenis lain (.xlsx, .pptx, gambar) belum didukung. Jangan mengaku sudah menyimpannya.
+
 ## Mencari dan menjawab
 
-1. Cari dengan kata kunci inti pertanyaan, bukan kalimat panjang:
+SML sering tidak tahu dokumen mana yang memuat jawabannya ("coba cari soal ketenagakerjaan atau lembur"). Tugasmu menemukan semua tempat yang mungkin cocok, menunjukkan letaknya, lalu bertanya mana yang dimaksud.
+
+1. Pencarian ini mencocokkan kata, bukan makna, jadi KAMU yang memperluas katanya. Dari permintaan SML, susun 6-10 kata yang berkaitan (sinonim, istilah resmi, bentuk Inggris, kata turunan) dan cari sekaligus dalam satu perintah:
    ```
-   python3 ${HERMES_SKILL_DIR}/scripts/brain.py search "<kata kunci>" --json --limit 6
+   python3 ${HERMES_SKILL_DIR}/scripts/brain.py search "lembur overtime upah lembur jam kerja ketenagakerjaan waktu kerja" --json --limit 10
    ```
-   Hasil tipis? Coba sekali lagi dengan sinonim atau istilah Inggris/Indonesianya.
-2. Butuh isi lengkap satu catatan: `brain.py show <doc_id>`.
-3. Jawab HANYA dari hasil pencarian. Sebutkan judul catatan dan tanggalnya untuk tiap klaim, dan sumber aslinya kalau ada.
-4. Tidak ada hasil yang relevan: katakan "tidak ada di brain". Kalau kamu lalu menjawab dari pengetahuan umum, pisahkan dengan jelas dan beri label bahwa itu bukan dari arsip.
-5. Dua catatan saling bertentangan: tampilkan keduanya dengan tanggalnya, jangan memilih diam-diam.
+   Hasil masih tipis? Ulangi sekali dengan kata lain. Dua kali kosong berarti memang tidak ada.
+2. Kelompokkan hasil per topik temuan, dan sebutkan letaknya dari field `judul` dan `bagian`. Format jawaban:
+   ```
+   Ketemu 4 bagian yang mungkin cocok:
+   a. Aturan persetujuan dan tarif lembur — SOP Kepegawaian 2026, bagian "Lembur"
+   b. Jam kerja normal — SOP Kepegawaian 2026, bagian "Jam Kerja"
+   c. Lembur di slip gaji — SOP Payroll, bagian "Komponen Lembur di Slip Gaji"
+   d. BPJS Ketenagakerjaan — SOP Payroll, bagian "BPJS"
+   Mau lihat yang mana?
+   ```
+   Satu baris per temuan, tanpa menyalin isi panjang. Urutkan dari yang paling mungkin dimaksud.
+3. Setelah SML memilih, tampilkan isi bagian itu dari `kutipan`. Butuh dokumen lengkap: `brain.py show <doc_id>`. SML minta file aslinya: kirim file di `file_asli`.
+4. Jawab HANYA dari hasil pencarian. Sebutkan judul dokumen dan bagiannya untuk tiap klaim, dan sumber aslinya kalau ada.
+5. Tidak ada hasil yang relevan: katakan "tidak ada di brain". Kalau kamu lalu menjawab dari pengetahuan umum, pisahkan dengan jelas dan beri label bahwa itu bukan dari arsip.
+6. Dua catatan saling bertentangan: tampilkan keduanya dengan tanggalnya, jangan memilih diam-diam.
 
 ## Perintah lain
 - `brain.py list [--category x]`: catatan terbaru.
