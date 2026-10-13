@@ -84,7 +84,7 @@ SML sering tidak tahu dokumen mana yang memuat jawabannya ("coba cari soal keten
 ## Perintah lain
 - `brain.py list [--category x]`: catatan terbaru.
 - `brain.py status`: jumlah catatan per kategori.
-- `brain.py ingest <folder>`: mengindeks folder Markdown yang sudah ada (misalnya salinan vault Obsidian) tanpa menyalinnya. Jalankan lagi setelah folder itu berubah.
+- `brain.py ingest <folder>`: mengindeks folder Markdown di LUAR vault tanpa menyalinnya. Jalankan lagi setelah folder itu berubah. Untuk vault sendiri (`~/hermes-data/brain/knowledge/`, termasuk halaman tulisan skill `obsidian` dan `llm-wiki`) tidak perlu: `search` menyegarkan indeksnya otomatis.
 - `brain.py forget <doc_id>`: hanya atas permintaan eksplisit SML, setelah kamu menyebut judul catatannya dan SML mengonfirmasi.
 
 ## Pitfalls

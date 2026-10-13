@@ -137,8 +137,4 @@ OBSIDIAN_VAULT_PATH=/home/ubuntu/hermes-data/brain/knowledge
 WIKI_PATH=/home/ubuntu/hermes-data/brain/knowledge/wiki
 ```
 
-Halaman yang ditulis kedua skill itu masuk ke indeks pencarian lewat `ingest`, yang aman diulang (file yang tidak berubah dilewati, catatan buatan `add` mempertahankan kategorinya). Jadwalkan di crontab:
-
-```
-*/15 * * * * python3 $HOME/.hermes/skills/productivity/brain/scripts/brain.py ingest $HOME/hermes-data/brain/knowledge --category wiki >/dev/null 2>&1
-```
+Tidak perlu cron. Setiap `search` lebih dulu menyamakan indeks dengan isi folder `knowledge/`: halaman baru atau yang diedit (oleh kedua skill itu, atau dari Obsidian di PC) langsung bisa dicari, dan halaman yang dihapus hilang dari hasil. File yang tidak berubah tidak dibaca ulang, jadi tambahan waktunya kecil. Kategori diambil dari nama subfolder pertama; catatan buatan `add` mempertahankan kategorinya.

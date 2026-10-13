@@ -8,7 +8,8 @@ Hanya pakai standard library, tanpa layanan yang terus hidup.
     brain.py add-file <file> [--title "..."] [--tags a,b] [--category dokumen]
                                    simpan file asli (.pdf .docx .md .txt .csv) dan indeks isinya
     brain.py ingest <folder|file> [--category ref]   indeks file .md/.txt yang sudah ada (tidak disalin)
-    brain.py search "pertanyaan" [--limit 5] [--category x] [--json]
+    brain.py search "pertanyaan" [--limit 5] [--category x] [--json] [--no-refresh]
+                                   sebelum mencari, indeks disegarkan dari folder knowledge/
     brain.py show <doc_id>
     brain.py list [--limit 20] [--category x]
     brain.py forget <doc_id>       hapus dari indeks; catatan buatan `add` ikut dihapus dari disk
@@ -70,6 +71,7 @@ def db():
         CREATE VIRTUAL TABLE IF NOT EXISTS chunks USING fts5(
             doc_id UNINDEXED, ord UNINDEXED, section UNINDEXED, title, body,
             tokenize='unicode61 remove_diacritics 2');
+        CREATE TABLE IF NOT EXISTS seen (path TEXT PRIMARY KEY, stat TEXT NOT NULL);
     """)
     return c
 
@@ -276,42 +278,67 @@ def cmd_add_file(args):
     print(f"OK tersimpan #{doc_id} '{judul}': {len(teks.split())} kata, {n} potongan. File asli: {asli}")
 
 
-def cmd_ingest(args):
-    target = Path(args.path).expanduser().resolve()
-    if not target.exists():
-        sys.exit(f"ERROR tidak ada: {target}")
+def sinkron(c, target, category=None, lapor=True):
+    """Samakan indeks dengan isi folder (atau satu file). Kembalikan hitungan per hasil.
+
+    File yang ukuran dan waktu ubahnya sama seperti terakhir dilihat tidak dibaca ulang, jadi
+    pemanggilan berulang murah. category=None: kategori diambil dari nama subfolder pertama.
+    """
     files = [target] if target.is_file() else [
-        p for p in sorted(target.rglob("*"))
-        if p.is_file() and p.suffix.lower() in (".md", ".txt", ".markdown")
-        and not (set(p.relative_to(target).parts[:-1]) & SKIP_DIRS)]
-    c = db()
-    hitung = {"baru": 0, "diperbarui": 0, "sama": 0, "dilewati": 0}
-    for p in files:
-        if p.stat().st_size > MAX_FILE_BYTES:
+        f for f in sorted(target.rglob("*"))
+        if f.is_file() and f.suffix.lower() in (".md", ".txt", ".markdown")
+        and not (set(f.relative_to(target).parts[:-1]) & SKIP_DIRS)]
+    dilihat = dict(c.execute("SELECT path, stat FROM seen").fetchall())
+    hitung = {"baru": 0, "diperbarui": 0, "sama": 0, "dilewati": 0, "hilang": 0}
+    for f in files:
+        st = f.stat()
+        stat = f"{st.st_mtime_ns}:{st.st_size}"
+        if dilihat.get(str(f)) == stat:
+            hitung["sama"] += 1
+            continue
+        c.execute("INSERT OR REPLACE INTO seen (path, stat) VALUES (?, ?)", (str(f), stat))
+        if st.st_size > MAX_FILE_BYTES:
             hitung["dilewati"] += 1
             continue
         try:
-            text = p.read_text(encoding="utf-8")
+            text = f.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             hitung["dilewati"] += 1
             continue
         if RAHASIA.search(text):
-            print(f"LEWAT (tampak memuat rahasia): {p}", file=sys.stderr)
+            if lapor:
+                print(f"LEWAT (tampak memuat rahasia): {f}", file=sys.stderr)
             hitung["dilewati"] += 1
             continue
         # Dokumen yang sudah dikenal (misalnya catatan buatan `add`) mempertahankan kategorinya
-        lama = c.execute("SELECT category FROM docs WHERE path = ?", (str(p),)).fetchone()
-        hitung[indeks(c, p, text, lama["category"] if lama else args.category, managed=False)[1]] += 1
-    hilang = 0
+        lama = c.execute("SELECT category FROM docs WHERE path = ?", (str(f),)).fetchone()
+        if lama:
+            kategori = lama["category"]
+        elif category:
+            kategori = category
+        else:
+            bagian = f.relative_to(target).parts if target.is_dir() else ()
+            kategori = slug(bagian[0]) if len(bagian) > 1 else "notes"
+        hitung[indeks(c, f, text, kategori, managed=False)[1]] += 1
     if target.is_dir():  # buang dari indeks dokumen yang filenya sudah tidak ada di folder ini
-        for r in c.execute("SELECT id, path FROM docs WHERE managed = 0 AND path LIKE ?", (str(target) + os.sep + "%",)).fetchall():
-            if not Path(r["path"]).exists():
+        awalan = str(target) + os.sep
+        for r in c.execute("SELECT id, path FROM docs").fetchall():
+            if r["path"].startswith(awalan) and not Path(r["path"]).exists():
                 c.execute("DELETE FROM chunks WHERE doc_id = ?", (r["id"],))
                 c.execute("DELETE FROM docs WHERE id = ?", (r["id"],))
-                hilang += 1
+                c.execute("DELETE FROM seen WHERE path = ?", (r["path"],))
+                hitung["hilang"] += 1
     c.commit()
-    print(f"OK {len(files)} file diperiksa: baru {hitung['baru']}, diperbarui {hitung['diperbarui']}, "
-          f"tidak berubah {hitung['sama']}, dilewati {hitung['dilewati']}, dihapus dari indeks {hilang}")
+    return len(files), hitung
+
+
+def cmd_ingest(args):
+    target = Path(args.path).expanduser().resolve()
+    if not target.exists():
+        sys.exit(f"ERROR tidak ada: {target}")
+    n, h = sinkron(db(), target, args.category)
+    print(f"OK {n} file diperiksa: baru {h['baru']}, diperbarui {h['diperbarui']}, "
+          f"tidak berubah {h['sama']}, dilewati {h['dilewati']}, dihapus dari indeks {h['hilang']}")
 
 
 def kueri_fts(pertanyaan):
@@ -322,6 +349,10 @@ def kueri_fts(pertanyaan):
 def cmd_search(args):
     q = kueri_fts(args.query)
     c = db()
+    if not args.no_refresh and KNOWLEDGE.is_dir():
+        # Halaman yang ditulis langsung ke vault (skill obsidian, llm-wiki, atau Obsidian di PC)
+        # tidak lewat script ini, jadi indeks disamakan dulu dengan isi folder.
+        sinkron(c, KNOWLEDGE.resolve(), lapor=False)
     rows = []
     if q:
         sql = """SELECT d.id, d.title, d.path, d.source, d.tags, d.category, d.updated, d.file,
@@ -412,6 +443,7 @@ def main():
     s = sub.add_parser("search"); s.add_argument("query"); s.add_argument("--limit", type=int, default=5)
     s.add_argument("--category"); s.add_argument("--json", action="store_true")
     s.add_argument("--per-doc", type=int, default=3, help="potongan paling banyak per dokumen")
+    s.add_argument("--no-refresh", action="store_true", help="jangan segarkan indeks sebelum mencari")
     sh = sub.add_parser("show"); sh.add_argument("doc_id", type=int)
     ls = sub.add_parser("list"); ls.add_argument("--limit", type=int, default=20); ls.add_argument("--category")
     f = sub.add_parser("forget"); f.add_argument("doc_id", type=int)
