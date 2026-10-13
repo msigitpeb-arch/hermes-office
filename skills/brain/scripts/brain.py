@@ -299,7 +299,9 @@ def cmd_ingest(args):
             print(f"LEWAT (tampak memuat rahasia): {p}", file=sys.stderr)
             hitung["dilewati"] += 1
             continue
-        hitung[indeks(c, p, text, args.category, managed=False)[1]] += 1
+        # Dokumen yang sudah dikenal (misalnya catatan buatan `add`) mempertahankan kategorinya
+        lama = c.execute("SELECT category FROM docs WHERE path = ?", (str(p),)).fetchone()
+        hitung[indeks(c, p, text, lama["category"] if lama else args.category, managed=False)[1]] += 1
     hilang = 0
     if target.is_dir():  # buang dari indeks dokumen yang filenya sudah tidak ada di folder ini
         for r in c.execute("SELECT id, path FROM docs WHERE managed = 0 AND path LIKE ?", (str(target) + os.sep + "%",)).fetchall():

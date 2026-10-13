@@ -128,3 +128,17 @@ python3 ~/.hermes/skills/productivity/brain/scripts/brain.py ingest ~/vault --ca
 Menyimpan file beserta isinya (.pdf, .docx, .md, .txt, .csv): `brain.py add-file <file> --title "..."`. File asli disalin ke `~/hermes-data/brain/files/`, teksnya diindeks per bagian (heading atau halaman), sehingga hasil pencarian menyebut dokumen dan bagiannya. PDF butuh `sudo apt install -y poppler-utils`.
 
 Batasan versi ini: pencarian berbasis kata, bukan makna, jadi agen memperluas pertanyaan dengan sinonim sebelum mencari. PDF hasil pindai (tanpa teks), .xlsx, .pptx, dan gambar belum didukung. Catatan yang tampak memuat API key, token, atau password ditolak.
+
+### Satu vault untuk brain, obsidian, dan llm-wiki
+Skill bawaan Hermes `obsidian` dan `llm-wiki` diarahkan ke folder catatan brain, supaya semua pengetahuan ada di satu tempat. Tambahkan ke `~/.hermes/.env`, lalu restart gateway:
+
+```
+OBSIDIAN_VAULT_PATH=/home/ubuntu/hermes-data/brain/knowledge
+WIKI_PATH=/home/ubuntu/hermes-data/brain/knowledge/wiki
+```
+
+Halaman yang ditulis kedua skill itu masuk ke indeks pencarian lewat `ingest`, yang aman diulang (file yang tidak berubah dilewati, catatan buatan `add` mempertahankan kategorinya). Jadwalkan di crontab:
+
+```
+*/15 * * * * python3 $HOME/.hermes/skills/productivity/brain/scripts/brain.py ingest $HOME/hermes-data/brain/knowledge --category wiki >/dev/null 2>&1
+```
