@@ -22,7 +22,7 @@ metadata:
 - Cek AI slop: `python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py <file.json>`
 - Simpan dan kirim ke Telegram: `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py`
 - Hasil pemeriksaan ke topik Content Reviewer: `save_plan.py notify --to reviewer @<file>`
-- Tampilkan ringkasan konten di topik Content Reviewer: `save_plan.py detail <ID,ID>` atau `save_plan.py detail --status "Menunggu review SML"`
+- Tampilkan ringkasan konten di topik Content Reviewer: `save_plan.py detail <ID,ID>` atau `save_plan.py detail --status "Menunggu review"`
 - File spreadsheet: `~/hermes-data/content-plan/peoplesync_content_plan.csv`
 
 ## Mode Tim (Kanban): dipakai kalau profile `content-planner`, `content-writer`, dan `content-reviewer` ada
@@ -99,7 +99,7 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
    - Lalu `kanban_request_changes` berisi koreksi per ID dalam format JSON rubrik. Kartu kembali ke writer. Ulangi sampai semua baris approve.
 5. **Batas aman: putaran ke-6.** Kalau di putaran ke-6 masih ada baris yang gagal, jangan kirim balik lagi. Simpan baris yang sudah approve (langkah 6), lalu `kanban_block` dengan alasan, dan kirim eskalasi ke SML:
    `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py notify "Eskalasi content plan <run>: <n> konten belum lolos setelah 6 putaran. ID: <...>. Masalah utama: <ringkas>. Balas dengan arahan, atau minta lead membuat ulang."`
-6. Semua baris approve → isi `skor_checker`, `skor_seo`, `skor_slop`, `skor_ai`, `catatan_checker`, `revisi_ke` (jumlah putaran), `status` = "Menunggu review SML", `catatan_sml` = "". Simpan dengan langkah 4 Procedure (save_plan.py add ... --send). Dengan `--send`, script juga menampilkan ringkasan tiap konten yang disimpan (skor, hook, pesan utama, keyword, CTA, catatan) sebagai pesan di topik Content Reviewer. Naskah lengkap hanya ada di CSV dan Google Sheets, jadi jangan menyalinnya ke chat.
+6. Semua baris approve → isi `skor_checker`, `skor_seo`, `skor_slop`, `skor_ai`, `catatan_checker`, `revisi_ke` (jumlah putaran), `status` = "Menunggu review", `catatan_sml` = "". Simpan dengan langkah 4 Procedure (save_plan.py add ... --send). Dengan `--send`, script juga menampilkan ringkasan tiap konten yang disimpan (skor, hook, pesan utama, keyword, CTA, catatan) sebagai pesan di topik Content Reviewer. Naskah lengkap ada di CSV; konten yang belum di-approve TIDAK dimasukkan ke Google Sheets (hanya konten Approved yang disinkronkan). Jangan menyalin naskah lengkap ke chat.
 7. Kirim laporan langkah 5 Procedure dengan menulisnya ke file lalu `save_plan.py notify @<file>`. Tujuannya topik review di `config.env`, yang di setup ini sama dengan topik Content Reviewer (03.1). Setelah itu `kanban_complete`.
 
 Kalau SML bertanya langsung di topik Content Reviewer ("sudah approve belum?", "status CP-xxx?"), jawab dari data, bukan ingatan: `save_plan.py show` untuk yang sudah disimpan dan `hermes kanban list` untuk yang masih dikerjakan.
@@ -151,7 +151,7 @@ Kalau `delegate_task` tidak tersedia, lakukan pemeriksaan sebagai langkah terpis
 - Maksimal 2 putaran. Baris yang tetap gagal setelah 2 putaran dibuang dan disebut di laporan.
 
 ### 4. Simpan dan kirim untuk review SML
-Tambahkan ke setiap baris yang lolos: `skor_checker`, `skor_seo`, `skor_slop`, `skor_ai`, `catatan_checker` (ringkas apa yang sudah dikoreksi), `status` = "Menunggu review SML", `catatan_sml` = "".
+Tambahkan ke setiap baris yang lolos: `skor_checker`, `skor_seo`, `skor_slop`, `skor_ai`, `catatan_checker` (ringkas apa yang sudah dikoreksi), `status` = "Menunggu review", `catatan_sml` = "".
 Tulis JSON ke file BARU dengan nama unik (jangan memakai ulang file lama), lalu jalankan:
 
 ```
@@ -195,9 +195,9 @@ Simulasi biaya software payroll 100 karyawan selama 3 tahun: sewa vs beli putus
 Larangan format: tanpa heading (#), tanpa tabel, tanpa bullet bertingkat, tanpa bold/italic, tanpa garis pemisah (— atau ---), tanpa skor checker, tanpa nama pilar di daftar. Satu konten = dua baris.
 
 ### 6. Saat user mereview
-- `approve <ID>` → `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py status <ID> "Approved"`
+- `approve <ID>` → `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py status <ID> "Approved"` (otomatis disinkronkan ke Google Sheets)
 - `tolak <ID> <alasan>` → status "Ditolak" dengan catatan alasan
-- `revisi <ID> <catatan>` → perbaiki baris itu, ulangi langkah 2 untuk baris itu saja, lalu simpan dengan status "Menunggu review SML" dan catatan_sml berisi catatan user.
+- `revisi <ID> <catatan>` → perbaiki baris itu, ulangi langkah 2 untuk baris itu saja, lalu simpan dengan status "Menunggu review" dan catatan_sml berisi catatan user.
 Untuk status dengan catatan: `save_plan.py status <ID> "<status>" --note "<catatan>"`. Bisa beberapa ID sekaligus dipisah koma.
 
 ## Aturan Bahasa (berlaku untuk semua output)
@@ -221,7 +221,7 @@ Untuk status dengan catatan: `save_plan.py status <ID> "<status>" --note "<catat
 - Menjanjikan ranking, traffic, atau leads ke SML. Yang bisa dilaporkan hanya skor pemeriksaan.
 
 ## Verification
-- Setiap baris di CSV punya `naskah` terisi, skor_checker ≥ 80, skor_seo ≥ 80, skor_slop ≤ 20, dan status "Menunggu review SML".
+- Setiap baris di CSV punya `naskah` terisi, skor_checker ≥ 80, skor_seo ≥ 80, skor_slop ≤ 20, dan status "Menunggu review".
 - Hasil pemeriksaan tiap putaran muncul di topik Content Reviewer.
 - Laporan ke user mengikuti format langkah 5 persis, satu pesan.
 - Script mengeluarkan "OK" dan file terkirim ke Telegram (atau pesan error yang dilaporkan ke user).

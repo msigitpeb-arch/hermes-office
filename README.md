@@ -31,7 +31,7 @@ Update: `cd ~/hermes-office && git pull`, lalu jalankan ulang kedua script di at
 
 ## content-planning
 Content planner PeopleSync (tema: masalah SaaS dan keuntungan software sekali beli).
-Alur: pembuat menyusun draft → pemeriksa (profile content-reviewer, model berbeda) mengoreksi dan memberi skor/approval → baris yang lolos disimpan ke `~/hermes-data/content-plan/peoplesync_content_plan.csv` dengan status "Menunggu review SML" → file CSV dikirim ke topik Telegram → SML membalas `approve CP-xxx`, `revisi CP-xxx <catatan>`, atau `tolak CP-xxx <alasan>`.
+Alur: pembuat menyusun draft → pemeriksa (profile content-reviewer, model berbeda) mengoreksi dan memberi skor/approval → baris yang lolos disimpan ke `~/hermes-data/content-plan/peoplesync_content_plan.csv` dengan status "Menunggu review" → file CSV dikirim ke topik Telegram → SML membalas `approve CP-xxx`, `revisi CP-xxx <catatan>`, atau `tolak CP-xxx <alasan>`.
 
 Pakai di Telegram: `/content-planning buat content plan 2 minggu untuk PeopleSync`
 
@@ -58,7 +58,7 @@ AI_DETECTOR_KEY=<api key>
 Rubrik memeriksa faktor yang bisa dikendalikan dari sisi konten. Terindeks, ranking, traffic, dan leads baru bisa dibuktikan di Search Console setelah konten tayang.
 
 ### Rekam ke Google Sheets
-Setiap kali reviewer menyimpan konten atau status berubah (`approve`, `revisi`, `tolak`), `save_plan.py` ikut memperbarui Google Sheets. Baris dicocokkan lewat `id`: yang sudah ada ditimpa, yang baru ditambahkan, tidak ada yang dihapus. CSV tetap menjadi sumber utama; kalau kiriman ke Sheets gagal, penyimpanan CSV tidak batal.
+Google Sheets hanya menerima konten yang sudah di-approve SML. Setiap kali `save_plan.py` menyimpan konten atau mengubah status, baris berstatus Approved dikirim ke sana; konten yang masih menunggu review hanya ada di CSV. Baris dicocokkan lewat `id`: yang sudah ada ditimpa, yang baru ditambahkan, tidak ada yang dihapus (baris yang approval-nya dicabut tetap tampil dengan status lamanya). CSV tetap menjadi sumber utama; kalau kiriman ke Sheets gagal, penyimpanan CSV tidak batal.
 
 Pasang sekali:
 
@@ -69,7 +69,7 @@ Pasang sekali:
    SHEET_WEBHOOK_URL=https://script.google.com/macros/s/.../exec
    SHEET_TOKEN=<token yang sama>
    ```
-4. Kirim semua baris yang sudah ada: `python3 ~/.hermes/skills/marketing/content-planning/scripts/save_plan.py sheet`
+4. Kirim semua baris Approved yang sudah ada: `python3 ~/.hermes/skills/marketing/content-planning/scripts/save_plan.py sheet`
 
 Data masuk ke tab "Content Plan". URL web app bisa dipanggil siapa saja, jadi `TOKEN` adalah satu-satunya pengaman: jangan ditaruh di repo atau di screenshot. Setiap kali isi Apps Script diubah, buat deployment versi baru supaya perubahan berlaku.
 

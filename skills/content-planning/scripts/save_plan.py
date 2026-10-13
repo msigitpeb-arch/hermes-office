@@ -5,11 +5,11 @@ Hanya pakai standard library.
 
     save_plan.py add batch.json [--send]          tambah/timpa baris (berdasarkan id)
     save_plan.py status CP-1,CP-2 "Approved" [--note "..."] [--send]
-    save_plan.py show [--status "Menunggu review SML"]
+    save_plan.py show [--status "Menunggu review"]
     save_plan.py send                             kirim file CSV ke Telegram
     save_plan.py detail CP-1,CP-2                 tampilkan ringkasan konten (skor, hook, catatan) di topik reviewer
-    save_plan.py detail --status "Menunggu review SML"
-    save_plan.py sheet                            kirim ulang semua baris ke Google Sheets
+    save_plan.py detail --status "Menunggu review"
+    save_plan.py sheet                            kirim ulang semua baris Approved ke Google Sheets
     save_plan.py kosongkan draft.json CP-1,CP-2   hapus naskah baris yang harus ditulis ulang dari nol
     save_plan.py ping                             kirim pesan tes ke topik review dan topik reviewer
     save_plan.py notify "teks" | @file.txt       kirim laporan/eskalasi ke topik review
@@ -21,7 +21,7 @@ Konfigurasi: ~/hermes-data/content-plan/config.env
     REVIEWER_THREAD_ID=9        topik Content Reviewer (hasil pemeriksaan tiap putaran), opsional
     SHEET_WEBHOOK_URL=https://script.google.com/macros/s/.../exec   opsional, lihat references/google-sheet-webhook.gs
     SHEET_TOKEN=...             sama dengan TOKEN di Apps Script
-Kalau SHEET_WEBHOOK_URL diisi, setiap `add` dan `status` ikut memperbarui Google Sheets.
+Kalau SHEET_WEBHOOK_URL diisi, setiap `add` dan `status` ikut mengirim baris Approved ke Google Sheets.
 Token bot diambil dari TELEGRAM_BOT_TOKEN di ~/.hermes/.env (atau environment).
 """
 import argparse
@@ -78,12 +78,19 @@ def save_rows(rows):
 
 
 def sync_sheet():
-    """Cerminkan seluruh CSV ke Google Sheets. Gagal kirim tidak membatalkan penyimpanan CSV."""
+    """Cerminkan baris berstatus Approved ke Google Sheets; baris yang belum disetujui tidak dikirim.
+
+    Gagal kirim tidak membatalkan penyimpanan CSV. Baris yang sudah ada di Sheets tidak pernah dihapus,
+    jadi baris yang approval-nya dicabut tetap tampil di sana dengan status lamanya.
+    """
     cfg = tg_config()
     url, token = cfg.get("SHEET_WEBHOOK_URL"), cfg.get("SHEET_TOKEN")
     if not url:
         return
-    rows = [{k: r.get(k, "") for k in FIELDS} for r in load_rows()]
+    rows = [{k: r.get(k, "") for k in FIELDS} for r in load_rows() if r.get("status") == "Approved"]
+    if not rows:
+        print("INFO tidak ada baris berstatus Approved untuk dikirim ke Google Sheets")
+        return
     req = urllib.request.Request(
         url,
         data=json.dumps({"token": token, "fields": FIELDS, "rows": rows}).encode(),
@@ -122,7 +129,7 @@ def cmd_add(path, force=False):
             print(f"SKIP baris tanpa id: {item}", file=sys.stderr)
             continue
         item = {k: ("" if v is None else str(v)) for k, v in item.items()}
-        item.setdefault("status", "Menunggu review SML")
+        item.setdefault("status", "Menunggu review")
         item["diperbarui"] = now()
         if item["id"] in rows:
             diperbarui += 1
@@ -304,7 +311,8 @@ def send_ping():
 
 def caption_ringkas():
     rows = load_rows()
-    menunggu = sum(r.get("status") == "Menunggu review SML" for r in rows)
+    # Baris lama masih memakai nama status sebelum diganti
+    menunggu = sum(r.get("status") in ("Menunggu review", "Menunggu review SML") for r in rows)
     approved = sum(r.get("status") == "Approved" for r in rows)
     return f"Content plan PeopleSync. Menunggu review: {menunggu}, Approved: {approved}, Total: {len(rows)}"
 
