@@ -106,7 +106,7 @@ Kalimat kunci menyebut subjek dengan nama (bukan "sistem ini"), memuat angka den
 - Sesudah: "Pada contoh audit ini, waktu tunggu 28 jam per siklus dua kali lebih panjang dari 14 jam kerja aktif, sehingga memperbaiki cut-off dan alur approval memberi dampak lebih besar daripada mempercepat perhitungan."
 
 **18. Tidak ada kalimat yang diulang persis di `summary`, isi, dan `faq`.**
-Kalimat kunci GEO ditulis sekali di isi. Ringkasan dan FAQ memakai kalimat sendiri. Kalimat kembar (6 kata atau lebih yang sama persis) di dua tempat = pelanggaran.
+Kalimat kunci GEO ditulis sekali di isi. Ringkasan dan FAQ memakai kalimat sendiri. Kalimat kembar (6 kata atau lebih yang sama persis) di dua tempat = pelanggaran. `slop_check.py` menangkap otomatis kalimat kembar 8 kata atau lebih; yang 6 sampai 7 kata tetap diperiksa reviewer.
 
 **19. `faq` berisi 3 sampai 5 tanya-jawab yang menjawab pertanyaan berbeda dari H2, dengan kalimat yang tidak disalin dari isi.**
 
@@ -142,7 +142,7 @@ Hindari: "korporasi" (pakai "perusahaan"), "mengeliminasi" (pakai "mengurangi" a
 
 ## Daftar frasa terlarang
 
-Reviewer mencari frasa berikut di seluruh naskah, termasuk FAQ, meta, dan Sumber. Satu temuan = "revisi" dengan perbaikan per baris.
+Reviewer mencari frasa berikut di seluruh naskah, termasuk FAQ, meta, dan Sumber. Satu temuan = "revisi" dengan perbaikan per baris. `slop_check.py` menampilkan temuannya di field `terlarang`; frasa yang terlalu umum untuk dicari mesin ("pasti", "akurat", "rata-rata", "komprehensif") tetap dicari reviewer sendiri.
 
 | Frasa | Ganti dengan |
 |---|---|

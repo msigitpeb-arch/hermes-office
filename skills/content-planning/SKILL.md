@@ -20,7 +20,8 @@ metadata:
 - Brief produk (SATU-SATUNYA sumber fakta): `${HERMES_SKILL_DIR}/references/peoplesync-brief.md`
 - Rubrik pemeriksa: `${HERMES_SKILL_DIR}/references/checker-rubric.md`
 - Standar artikel Website (WAJIB untuk Artikel Blog dan Berita Website): `${HERMES_SKILL_DIR}/references/article-standard.md`
-- Cek AI slop: `python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py <file.json>`
+- Cek AI slop: `python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py <file.json>` (keluaran juga memuat `terlarang` dan, untuk baris Website, `format_situs`)
+- Uji pemeriksa slop setelah mengubah polanya: `cd ${HERMES_SKILL_DIR}/scripts && python3 -m unittest test_slop_check.py`
 - Simpan dan kirim ke Telegram: `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py`
 - Hasil pemeriksaan ke topik Content Reviewer: `save_plan.py notify --to reviewer @<file>`
 - Tampilkan ringkasan konten di topik Content Reviewer: `save_plan.py detail <ID,ID>` atau `save_plan.py detail --status "Menunggu review"`
@@ -47,6 +48,8 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
 1. Kerjakan langkah 0-1 TANPA menulis naskah: isi semua field kecuali `naskah`. Fokus pada strategi: sebaran pilar dan funnel, angle tiap konten, hook, outline, CTA, dan `sumber_klaim`.
    - Field pencarian (`keyword`, `negara_bahasa`, `search_intent`, `meta_title`, `meta_description`, `slug`, `faq`) diisi olehmu. Kalau tool pencarian web tersedia, cari dulu keyword utamanya: pastikan memang dicari orang, lihat pertanyaan yang muncul di hasil teratas, dan pilih sudut yang belum dibahas di sana.
    - Jalankan `save_plan.py show` supaya keyword dan sudut pandang tidak mengulang konten yang sudah ada.
+   - Untuk baris Website, `outline` berisi urutan H2 dan, di bawah tiap H2, data kunci yang harus muncul: fakta atau angka dengan satuan dan periode, lalu sumbernya (dokumen dan pasal) atau asumsinya bila itu ilustrasi. Outline TIDAK berisi kalimat jadi. Jangan menulis perintah seperti "tiga kalimat kunci GEO", "ulangi di Ringkasan", atau "pakai kalimat yang sama di FAQ": writer akan menyalin kalimat itu ke beberapa tempat. Writer merumuskan kalimatnya sendiri, dan tiap kalimat kunci hanya muncul sekali (aturan 17 dan 18 di `article-standard.md`).
+   - Pertanyaan di `faq` menanyakan hal yang belum dijawab H2 mana pun, supaya jawabannya tidak menyalin isi.
 2. Simpan ke `drafts/<run>-plan.json` (ganti `<run>` dengan ID kartumu).
 3. Buat kartu untuk writer: `kanban_create(title="Naskah content plan <run>", assignee="content-writer", body="Rencana di ~/hermes-data/content-plan/drafts/<run>-plan.json. Tulis naskah tiap baris. Pakai skill content-planning, peran CONTENT-WRITER. Run ID: <run>.", max_runtime_seconds=3600)`
    Batas waktu wajib 3600. Jangan mengisi 0: nol dibaca sebagai batas nol detik, bukan "tanpa batas", dan writer akan dimatikan di detik ke-60.
@@ -65,19 +68,19 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
      - Fakta umum HR, payroll, pajak, dan regulasi boleh dipakai kalau kamu menemukannya lewat pencarian web dan mencantumkan sumbernya (nama lembaga atau media, tahun, URL) di bagian "Sumber" dan di `sumber_klaim`. Tidak ketemu sumbernya = jangan ditulis. Angka contoh buatan sendiri wajib diberi label "ilustrasi" lengkap dengan asumsinya.
 
    Kerangka konten Website (inilah yang membuat SEO dan GEO-nya kuat):
-   1. H1 memuat keyword utama, paling panjang 60 karakter.
-   2. Blok "Ringkasan" tepat di bawah H1: 2-3 kalimat (40-60 kata) yang langsung menjawab pertanyaan pencari dan bisa dikutip utuh tanpa membaca sisanya.
+   1. Judul (`title` di frontmatter, yang dirender sebagai H1) memuat keyword utama, paling panjang 60 karakter. Jangan menulis H1 (`# ...`) di isi.
+   2. Ringkasan (`summary` di frontmatter, dirender tepat di bawah judul): 2-3 kalimat (40-60 kata) yang langsung menjawab pertanyaan pencari dan bisa dikutip utuh tanpa membaca sisanya. Jangan menulis blok "Ringkasan" di isi, dan jangan menyalin kalimat `summary` ke isi atau FAQ.
    3. Keyword utama muncul di 100 kata pertama, di satu H2, dan di `meta_title`, `meta_description`, `slug`. Sisanya memakai variasi dan istilah terkait, bukan pengulangan.
    4. H2/H3 berupa pertanyaan atau frasa yang benar-benar dicari. Di bawah tiap heading pertanyaan ada jawaban langsung 40-60 kata, baru penjelasannya.
    5. Paling sedikit satu tabel (perbandingan atau hitungan) dan satu daftar bernomor (langkah atau checklist).
-   6. Paling sedikit tiga kalimat kunci yang berdiri sendiri: menyebut subjeknya dengan nama, memuat angka beserta satuan, periode, dan asumsinya. Contoh: "Pada simulasi 100 karyawan dengan tarif Rp 45.000 per user per bulan, biaya langganan software payroll mencapai Rp 162 juta dalam 3 tahun."
+   6. Paling sedikit tiga kalimat kunci yang berdiri sendiri: menyebut subjeknya dengan nama, memuat angka beserta satuan, periode, dan asumsinya. Ketiganya membawa informasi berbeda, dan tiap kalimat kunci ditulis SEKALI di isi. `summary` dan `faq` memakai kalimat sendiri; boleh menyebut angka yang sama, tetapi tidak dengan kalimat yang sama. Kalimat kunci dirumuskan writer dari data kunci di outline, bukan disalin dari outline. Contoh bentuk (jangan disalin): "Pada simulasi 100 karyawan dengan tarif Rp 45.000 per user per bulan, biaya langganan software payroll mencapai Rp 162 juta dalam 3 tahun."
    7. Definisi istilah penting ditulis satu kalimat dengan pola "X adalah ...".
    8. Nama entitas konsisten dari awal sampai akhir ("PeopleSync", "HR & payroll on-premise").
-   9. Bagian "FAQ" dari field `faq`, lalu bagian "Sumber" berisi daftar rujukan fakta umum.
+   9. FAQ dari field `faq`, ditulis di `faq` frontmatter (dirender situs beserta schema FAQPage), bukan sebagai bagian di isi. Isi ditutup bagian "## Sumber" berisi daftar rujukan fakta umum.
    10. Paling sedikit satu tautan ke peoplesync.id dan satu CTA sesuai funnel.
    - Ikuti "Aturan Bahasa" di bawah, terutama bagian menulis seperti manusia.
 2. Simpan semua baris (field rencana + `naskah`) ke `drafts/<run>-copy.json`.
-3. Cek sendiri sebelum mengirim: `python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py ~/hermes-data/content-plan/drafts/<run>-copy.json`. Baris dengan `lolos: false` ditulis ulang dulu. Jangan mengirim naskah yang kamu tahu akan gagal.
+3. Cek sendiri sebelum mengirim: `python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py ~/hermes-data/content-plan/drafts/<run>-copy.json`. Baris dengan `lolos: false` ditulis ulang dulu. Baris dengan `terlarang` atau `format_situs` yang tidak kosong diperbaiki dulu di bagian yang disebut. Jangan mengirim naskah yang kamu tahu akan gagal.
 4. `kanban_request_review` dengan reviewer `content-reviewer` dan summary: path file, jumlah konten, dan putaran revisi ke berapa.
 5. Kalau kartu kembali dengan permintaan perubahan, timpa file `-copy.json`, lalu ulangi langkah 3-4:
    - Keputusan "revisi": perbaiki HANYA baris dan bagian yang dikoreksi.
@@ -85,7 +88,7 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
    - Jangan membantah koreksi; kalau koreksi bertentangan dengan brief, ikuti brief dan jelaskan singkat di summary.
 
 **Kalau kamu CONTENT-REVIEWER (editor + approval):**
-1. Jalankan `slop_check.py` pada `drafts/<run>-copy.json`, lalu baca filenya. Nilai SETIAP baris (rencana DAN naskah) dengan `checker-rubric.md` dan `peoplesync-brief.md`. Baris platform Website juga diperiksa terhadap setiap aturan bernomor dan daftar frasa terlarang di `article-standard.md`; buka sendiri dokumen sumber untuk setiap angka regulasi, jangan cukup melihat ada sumbernya. Keputusan per baris: "approve", "revisi", atau "tulis_ulang".
+1. Jalankan `slop_check.py` pada `drafts/<run>-copy.json`, lalu baca filenya. Nilai SETIAP baris (rencana DAN naskah) dengan `checker-rubric.md` dan `peoplesync-brief.md`. Baris platform Website juga diperiksa terhadap setiap aturan bernomor dan daftar frasa terlarang di `article-standard.md`; buka sendiri dokumen sumber untuk setiap angka regulasi, jangan cukup melihat ada sumbernya. Field `terlarang` atau `format_situs` dari `slop_check.py` yang tidak kosong = paling ringan "revisi". Keputusan per baris: "approve", "revisi", atau "tulis_ulang".
 2. Hitung putaran: lihat riwayat kartu (`kanban_show`), jumlah `request_changes` sebelumnya + 1.
 3. Setiap putaran, kirim hasil pemeriksaan ke topik Content Reviewer. Tulis ke file, lalu `save_plan.py notify --to reviewer @<file>`. Format persis, satu baris per konten, tanpa heading, tabel, atau bold:
    ```

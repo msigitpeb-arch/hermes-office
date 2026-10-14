@@ -27,6 +27,10 @@ python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py ~/hermes-data/content-plan/dra
 
 Script mengembalikan `skor_slop` (0-100, makin kecil makin baik), `skor_ai` (persen dari detektor eksternal, atau "n/a" kalau detektor belum dipasang), `lolos`, dan `temuan`. Salin `skor_slop` dan `skor_ai` apa adanya ke hasil penilaianmu. Jangan mengarang atau membulatkan angkanya.
 
+`temuan` juga menghitung kalimat meta ("artikel ini membahas", 6 poin per kalimat, maksimal 18) dan kalimat kembar, yaitu kalimat 8 kata atau lebih yang muncul persis di dua tempat atau lebih di naskah dan `faq` (8 poin per kalimat, maksimal 24). Dua field lain tidak memengaruhi `skor_slop` dan `lolos`:
+- `terlarang`: frasa dari "Daftar frasa terlarang" di `article-standard.md` (klaim berisiko, fitur yang dicabut, nama kompetitor, kata API). Tidak kosong = "revisi". Periksa dulu konteksnya: nama kompetitor di kalimat yang tidak menjelekkan tetap dikoreksi, karena gerbang 3 melarang menyebutnya.
+- `format_situs` (hanya baris Website): H1, blok Ringkasan, atau bagian FAQ yang ditulis di isi, padahal situs merendernya dari frontmatter. Tidak kosong = "revisi".
+
 - `lolos: false` → keputusan **"tulis_ulang"**, apa pun skor lainnya. Naskah yang bagus secara SEO dan GEO tetapi masih terbaca seperti mesin tetap gagal.
 - `lolos: true` belum tentu aman. Script hanya menangkap pola yang bisa dihitung. Baca naskahnya dengan suara dalam kepala. Beri "tulis_ulang" juga kalau kamu menemukan salah satu dari ini:
   - Paragraf yang bisa ditempel ke produk lain tanpa diubah. Tidak ada angka, contoh, atau situasi yang spesifik.
@@ -49,11 +53,11 @@ Berlaku penuh untuk konten Website (**Artikel Blog**, **Berita Website**) dan **
 | GEO | 20 | Kalimat kunci bisa dikutip utuh tanpa konteks: menyebut subjeknya dengan nama, bukan kata ganti. Entitas ditulis konsisten ("PeopleSync", "HR & payroll on-premise"). Angka disertai satuan, periode, dan asumsi. Tiap bagian bisa dipahami tanpa membaca bagian lain. |
 
 Syarat minimum konten Website. Satu saja tidak terpenuhi, `skor_seo` paling tinggi 79 (otomatis "revisi"):
-- Blok "Ringkasan" 40-60 kata tepat di bawah H1 yang menjawab pertanyaan pencari.
-- Keyword utama ada di H1, 100 kata pertama, `meta_title`, `meta_description`, dan `slug`.
+- Ringkasan 40-60 kata yang menjawab pertanyaan pencari, di `summary` frontmatter (situs merendernya tepat di bawah H1).
+- Keyword utama ada di H1 (`title`), 100 kata pertama, `meta_title`, `meta_description`, dan `slug`.
 - Paling sedikit satu tabel dan satu daftar bernomor.
-- Paling sedikit tiga kalimat kunci yang berdiri sendiri (subjek disebut dengan nama, angka lengkap dengan satuan dan asumsi).
-- Bagian "FAQ" dengan 3-5 tanya-jawab dan bagian "Sumber" untuk setiap fakta umum.
+- Paling sedikit tiga kalimat kunci yang berdiri sendiri (subjek disebut dengan nama, angka lengkap dengan satuan dan asumsi), masing-masing membawa informasi berbeda dan ditulis sekali. Kalimat kunci yang disalin persis ke `summary` atau `faq` tidak dihitung.
+- FAQ 3-5 tanya-jawab di `faq` frontmatter, dan bagian "Sumber" untuk setiap fakta umum.
 - Paling sedikit satu tautan ke peoplesync.id.
 - Berita Website: ada peristiwa atau aturan nyata dengan sumber bertanggal. Tanpa itu, minta diubah menjadi Artikel Blog.
 | Lokalisasi | 10 | `negara_bahasa` terisi. Keyword dan istilah memang dipakai pencari di negara itu, bukan terjemahan harfiah. Mata uang dan aturan sesuai negaranya. Klaim produk tetap di dalam brief. |
