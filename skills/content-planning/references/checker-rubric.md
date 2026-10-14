@@ -16,6 +16,7 @@ Gagal gerbang 1-4 atau 6 = keputusan "revisi", skor maksimal 59. Gagal gerbang 5
 4. **Field lengkap**: semua field terisi dan formatnya benar (tanggal YYYY-MM-DD, funnel TOFU/MOFU/BOFU).
 5. **Bahasa manusia (anti AI slop)**: lihat bagian "Gerbang slop" di bawah.
 6. **SEO, GEO, AEO**: `skor_seo` ≥ 80, lihat bagian "Skor SEO, GEO, AEO" di bawah.
+7. **Standar artikel Website** (hanya platform Website): naskah memenuhi aturan bernomor di `article-standard.md`. Aturan 1-12 (fakta, sumber, klaim) gagal = "revisi", skor maksimal 59. Aturan 13-20 (SEO, GEO, AEO) gagal = `skor_seo` maksimal 79. Aturan 21-26 (gaya) gagal tiga kali atau lebih = "tulis_ulang". Satu frasa dari "Daftar frasa terlarang" = "revisi". Angka regulasi dinilai dengan membuka dokumen sumbernya; sumber yang hanya "tercantum" tetapi tidak cocok dengan dokumennya dihitung gagal.
 
 ## Gerbang slop
 Jalankan dulu, sebelum menilai apa pun:

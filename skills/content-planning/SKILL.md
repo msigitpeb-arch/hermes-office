@@ -19,6 +19,7 @@ metadata:
 ## Quick Reference
 - Brief produk (SATU-SATUNYA sumber fakta): `${HERMES_SKILL_DIR}/references/peoplesync-brief.md`
 - Rubrik pemeriksa: `${HERMES_SKILL_DIR}/references/checker-rubric.md`
+- Standar artikel Website (WAJIB untuk Artikel Blog dan Berita Website): `${HERMES_SKILL_DIR}/references/article-standard.md`
 - Cek AI slop: `python3 ${HERMES_SKILL_DIR}/scripts/slop_check.py <file.json>`
 - Simpan dan kirim ke Telegram: `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py`
 - Hasil pemeriksaan ke topik Content Reviewer: `save_plan.py notify --to reviewer @<file>`
@@ -52,7 +53,7 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
 4. `kanban_complete` dengan ringkasan: jumlah konten, sebaran pilar dan funnel.
 
 **Kalau kamu CONTENT-WRITER (penulis, worker Kanban):**
-1. Baca `drafts/<run>-plan.json` dan brief produk. Untuk setiap baris, isi field `naskah`: teks final yang siap diposting sesuai platform dan format.
+1. Baca `drafts/<run>-plan.json` dan brief produk. Untuk baris platform Website, baca juga `article-standard.md` sampai habis SEBELUM menulis, ikuti format frontmatter situs di sana, dan centang checklist-nya sebelum mengirim. Untuk setiap baris, isi field `naskah`: teks final yang siap diposting sesuai platform dan format.
    - LinkedIn Single Post / Artikel: 120-250 kata, paragraf pendek, hook di baris pertama.
    - Instagram Carousel: tulis per slide, format `Slide 1: ... | Slide 2: ...` (5-8 slide), lalu `Caption: ...`.
    - Reel: `Hook (0-3 dtk): ... | Isi: ... | Penutup: ...` lalu `Caption: ...`.
@@ -84,7 +85,7 @@ Semua file kerja di `~/hermes-data/content-plan/drafts/`. Ganti `<run>` dengan I
    - Jangan membantah koreksi; kalau koreksi bertentangan dengan brief, ikuti brief dan jelaskan singkat di summary.
 
 **Kalau kamu CONTENT-REVIEWER (editor + approval):**
-1. Jalankan `slop_check.py` pada `drafts/<run>-copy.json`, lalu baca filenya. Nilai SETIAP baris (rencana DAN naskah) dengan `checker-rubric.md` dan `peoplesync-brief.md`. Keputusan per baris: "approve", "revisi", atau "tulis_ulang".
+1. Jalankan `slop_check.py` pada `drafts/<run>-copy.json`, lalu baca filenya. Nilai SETIAP baris (rencana DAN naskah) dengan `checker-rubric.md` dan `peoplesync-brief.md`. Baris platform Website juga diperiksa terhadap setiap aturan bernomor dan daftar frasa terlarang di `article-standard.md`; buka sendiri dokumen sumber untuk setiap angka regulasi, jangan cukup melihat ada sumbernya. Keputusan per baris: "approve", "revisi", atau "tulis_ulang".
 2. Hitung putaran: lihat riwayat kartu (`kanban_show`), jumlah `request_changes` sebelumnya + 1.
 3. Setiap putaran, kirim hasil pemeriksaan ke topik Content Reviewer. Tulis ke file, lalu `save_plan.py notify --to reviewer @<file>`. Format persis, satu baris per konten, tanpa heading, tabel, atau bold:
    ```
